@@ -1,0 +1,147 @@
+import UserSchema from "../../Model/UserSchema.js";
+import dotenv from 'dotenv';
+import { OAuth2Client } from "google-auth-library";
+import { generateAccessToken, generateRefreshToken } from "../../Components/VerfiyAccessToken.js";
+
+
+dotenv.config();
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const AUTH_URL = process.env.AUTH_URL;
+const client = new OAuth2Client(CLIENT_ID);
+
+export async function Register(req, res) {
+    try {
+        const { firstName, lastName, email, password } = req.body;
+
+        const validationResponse = validate(req, res);
+        if (validationResponse !== true) {
+            return;
+        }
+
+        let user = await UserSchema.findOne({ email });
+
+        if (user) {
+            return res.status(400).send({ success: false, error: "This email is already registered. Please use a different email!" });
+        }
+        user = new UserSchema({ firstName, lastName, email, password });
+
+        await user.save();
+
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        res.status(201).send({
+            success: true,
+            message: "User registered successfully!",
+            user,
+            accessToken,
+        });
+
+    } catch (error) {
+        console.log("User Register Error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+
+// export const registerWithGoogle = async (req, res) => {
+//     const { idToken, role } = req.body;
+//     if (!idToken)
+//         return res
+//             .status(400)
+//             .json({ success: false, error: "ID token is required" });
+//     try {
+//         client.setCredentials({ access_token: idToken });
+//         const response = await client.request({ url: AUTH_URL });
+//         const payload = response.data;
+//         if (!payload)
+//             return res
+//                 .status(401)
+//                 .json({ success: false, error: "Invalid ID token" });
+//         const { id: googleId, email, name, picture } = payload;
+//         if (!googleId) {
+//             return res
+//                 .status(400)
+//                 .json({ success: false, error: "Invalid Google ID" });
+//         }
+//         let user = await UserSchema.findOne({ email });
+
+//         if (user) {
+//             user.googleId = googleId;
+//             user.name = name;
+//             user.picture = picture;
+//             user.role = role;
+//             await user.save();
+//             const accessToken = generateAccessToken(user);
+//             const refreshToken = generateRefreshToken(user);
+//             user.refreshToken = refreshToken;
+//             await user.save();
+//             return res.status(200).json({
+//                 success: true,
+//                 message: "User Registered successfully",
+//                 user,
+//                 accessToken,
+//             });
+//         } else {
+//             user = new UserSchema({
+//                 googleId,
+//                 email,
+//                 name,
+//                 picture,
+//                 role,
+//             });
+//             await user.save();
+//             const accessToken = generateAccessToken(user);
+//             const refreshToken = generateRefreshToken(user);
+//             user.refreshToken = refreshToken;
+//             await user.save();
+//             return res.status(201).json({
+//                 success: true,
+//                 message: "User Registered successfully",
+//                 user,
+//                 accessToken,
+//             });
+//         }
+//     } catch (error) {
+//         console.error("Error during registration:", error);
+//         return res
+//             .status(500)
+//             .json({ success: false, message: "Internal Server Error" });
+//     }
+// };
+
+
+const validate = (req, res) => {
+    const { firstName, lastName, email, password } = req.body;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const nameRegex = /^[A-Za-z]+([A-Za-z\s]){0,}$/;
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (!firstName) {
+        return res.status(400).send({ success: false, error: "firstName is required!" });
+    }
+    if (!nameRegex.test(firstName)) {
+        return res.status(400).send({ success: false, error: "firstName should only contain letters and spaces!" });
+    }
+    if (!lastName) {
+        return res.status(400).send({ success: false, error: "lastName is required!" });
+    }
+    if (!nameRegex.test(lastName)) {
+        return res.status(400).send({ success: false, error: "lastName should only contain letters and spaces!" });
+    }
+    if (!email) {
+        return res.status(400).send({ success: false, error: "email is required!" });
+    }
+    if (!emailRegex.test(email)) {
+        return res.status(400).send({ success: false, error: "Invalid email format!" });
+    }
+    if (!password) {
+        return res.status(400).send({ success: false, error: "password is required!" });
+    }
+    if (!passwordRegex.test(password)) {
+        return res.status(400).send({ success: false, error: "Password must be at least 8 characters long, contain 1 uppercase letter, 1 number, and 1 special character!" });
+    }
+    return true;
+};

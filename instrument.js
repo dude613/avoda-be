@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 Sentry.init({
-  dsn: "https://ad7c753df95f486c0775673f7664ac9d@sen.newhoopla.com/3",
+  dsn: process.env.SEN_DSN,
   integrations: [
     nodeProfilingIntegration(),
   ],

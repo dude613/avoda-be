@@ -1,12 +1,12 @@
 import express from "express";
 import {
-  ForgotPasswordMail,
   Register,
   registerWithGoogle,
   ResetPassword,
 } from "../../Controller/User/Register.js";
 import { Login, loginWithGoogle } from "../../Controller/User/Login.js";
 import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp.js";
+import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/ForgotPassword.js";
 
 export const authRouter = express.Router();
 
@@ -18,3 +18,5 @@ authRouter.post("/login", Login);
 authRouter.post("/google-login", loginWithGoogle);
 authRouter.post("/forgot-password", ForgotPasswordMail);
 authRouter.post("/reset-password", ResetPassword);
+authRouter.post("/new-password", SetNewPassword);
+

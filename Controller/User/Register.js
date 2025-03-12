@@ -5,9 +5,10 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerfiyAccessToken.js";
-import { SendOTPInMail } from "../../Components/Transporter.js";
 import UserSchema from "../../Model/UserSchema.js";
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
+import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
+
 
 dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -122,44 +123,6 @@ const validate = (req, res) => {
   }
   return true;
 };
-
-
-export async function ForgotPasswordMail(req, res) {
-  try {
-    const { email} = req.body;
-    const validationResponse = validate(req, res);
-    if (validationResponse !== true) {
-      return;
-    }
-    let user = await UserSchema.findOne({ email });
-
-    if (user) {
-      return res.status(400).send({
-        success: false,
-        error:
-          "This email is already registered. Please use a different email!",
-      });
-    }
-    user = new UserSchema({ email, password });
-    await user.save();
-
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    await UserOtpSchema.findOneAndUpdate(
-      { userId: user._id },
-      { otp, expiresAt: otpExpiration },
-      { upsert: true, new: true }
-    );
-    await SendOTPInMail(otp, email);
-    res.status(201).send({
-      success: true,
-      message: "User registered successfully!",
-    });
-  } catch (error) {
-    console.log("User Register Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-}
 
 export async function ResetPassword(req, res) {
   try {

@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate.js";
-import { 
+import {
     EMAIL_NOT_FOUND_ERROR,
     EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR,

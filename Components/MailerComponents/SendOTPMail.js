@@ -38,7 +38,8 @@ export async function SendOTPInMail(otp, toEmail) {
     };
 
     await transporter.sendMail(mailOptions);
+    return { success: true };
   } catch (e) {
-    return;
+    return { success: false, error: e.message };
   }
 }

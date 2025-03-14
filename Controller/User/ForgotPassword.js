@@ -106,6 +106,7 @@ export async function SetNewPassword(req, res) {
 
         return res.status(200).json({ success: true, message: PASSWORD_UPDATED_SUCCESS });
     } catch (error) {
-        console.log("error set new password:::", error.message)
+        console.log("error set new password:::", error.message);
+        return res.status(500).json({ success: false, error: GENERIC_ERROR_MESSAGE });
     }
 }

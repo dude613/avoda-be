@@ -44,7 +44,7 @@ export async function Register(req, res) {
     await SendOTPInMail(otp, email);
     res.status(201).send({
       success: true,
-      message: "User registered successfully!",
+      message: "OTP has been sent to your registered email address!",
     });
   } catch (error) {
     console.log("User Register Error:", error.message);

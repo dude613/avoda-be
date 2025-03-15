@@ -16,27 +16,22 @@ const client = new OAuth2Client(CLIENT_ID);
 export async function Login(req, res) {
   const { email, password } = req.body;
 
-  if (!email) {
-    return res
-      .status(400)
-      .send({ success: false, error: "Email are required!" });
+  const validationResponse = validate(req, res);
+  if (validationResponse !== true) {
+    return;
   }
-  if (!password) {
-    return res
-      .status(400)
-      .send({ success: false, error: "Password are required!" });
-  }
+
   try {
     const user = await UserSchema.findOne({ email });
     if (!user) {
       return res
         .status(400)
-        .send({ success: false, error: "Email not found!" });
+        .send({ success: false, error: "Your email or password is not correct!" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).send({ success: false, error: "wrong password!" });
+      return res.status(400).send({ success: false, error: "Your password is not correct!" });
     }
 
     const accessToken = generateAccessToken(user);
@@ -115,4 +110,27 @@ export const loginWithGoogle = async (req, res) => {
       .status(500)
       .json({ success: false, message: "Internal Server Error" });
   }
+};
+
+const validate = (req, res) => {
+  const { email, password } = req.body;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!email) {
+    return res
+      .status(400)
+      .send({ success: false, error: "email is required!" });
+  }
+  if (!emailRegex.test(email)) {
+    return res
+      .status(400)
+      .send({ success: false, error: "Invalid email format!" });
+  }
+  if (!password) {
+    return res.status(404).send({ success: false, error: "Password is required!" });
+  }
+  if (!passwordRegex.test(password)) {
+    return res.status(404).send({ success: false, error: "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character." })
+  }
+  return true;
 };

@@ -26,7 +26,7 @@ export async function Login(req, res) {
     if (!user) {
       return res
         .status(400)
-        .send({ success: false, error: "Your email or password is not correct!" });
+        .send({ success: false, error: "We couldn't find an account with this email. Please sign up" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -49,7 +49,7 @@ export async function Login(req, res) {
 
     res.status(201).send({
       success: true,
-      message: "OTP has been successfully sent to your email address.",
+      message: "User logged in successfully",
       user,
       accessToken,
     });
@@ -115,7 +115,7 @@ export const loginWithGoogle = async (req, res) => {
 const validate = (req, res) => {
   const { email, password } = req.body;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  const passwordRegex = /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/;
   if (!email) {
     return res
       .status(400)

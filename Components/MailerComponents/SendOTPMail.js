@@ -3,11 +3,9 @@ import { transporter } from "./Transporter.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-
-
 export async function SendOTPInMail(otp, toEmail) {
     try {
-      const verificationLink = `http://localhost:5174/register/verifyCode?email=${encodeURIComponent(
+      const verificationLink = `http://localhost:5173/register/verifyCode?email=${encodeURIComponent(
         toEmail
       )}&otp=${otp}`;
       const emailContent = `

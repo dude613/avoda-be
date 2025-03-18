@@ -17,15 +17,15 @@ export async function VerifyOtp(req, res) {
         .send({ success: false, message: "This email doesn't exist in database. Please use a different email!" });
     }
     if (user.verified === "true") {
-      return res.status(201).send({
+      return res.status(404).send({
         success: false,
         error: "This email already verified!",
       });
     }
     const otpRecord = await UserOtpSchema.findOne({ userId: user._id });
 
-    if (!otpRecord || otpRecord.otp !== String(otp)) {
-      return res.status(400).send({ success: false, message: "Invalid OTP." });
+    if (!otpRecord || otpRecord.otp !== otp) {
+      return res.status(400).send({ success: false, message: "Invalid OTP please check and try again." });
     }
 
     if (otpRecord.expiresAt < new Date()) {

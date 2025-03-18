@@ -17,22 +17,23 @@ const client = new OAuth2Client(CLIENT_ID);
 
 export async function Register(req, res) {
   try {
-    const { email, password } = req.body;
+    const { userName, email, password } = req.body;
     const validationResponse = validate(req, res);
     if (validationResponse !== true) {
       return;
     }
     let user = await UserSchema.findOne({ email });
-
     if (user) {
-      return res.status(400).send({
-        success: false,
-        error:
-          "This email is already registered. Please use a different email!",
-      });
+      if (user.verified === "true") {
+        return res.status(400).send({
+          success: false,
+          error: "This email is already registered. Please use a different email!",
+        });
+      }
+    } else {
+      user = new UserSchema({ userName, email, password });
+      await user.save();
     }
-    user = new UserSchema({ email, password });
-    await user.save();
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
@@ -93,7 +94,7 @@ export const registerWithGoogle = async (req, res) => {
         accessToken,
       });
     } else {
-      res.status(404).send({ success: false, msg: "User already exists" });
+      res.status(404).send({ success: false, msg: "This email  already exists" });
     }
   } catch (error) {
     console.error("Error during registration:", error);

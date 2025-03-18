@@ -36,7 +36,7 @@ export async function ForgotPasswordMail(req, res) {
             },
             { upsert: true, new: true }
         );
-        const resetLink = `http://localhost:5174/new-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
+        const resetLink = `http://localhost:5173/new-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
         const decodedLink = decodeURIComponent(resetLink);
         await ForgotTemplate(email, decodedLink);
         res.status(200).send({ success: true, message: "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password." })
@@ -71,7 +71,7 @@ const validate = (req, res) => {
 export async function SetNewPassword(req, res) {
     try {
         const { email, password } = req.body;
-        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        const passwordRegex = /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/;
 
         const validationResponse = validate(req, res);
         if (validationResponse !== true) {

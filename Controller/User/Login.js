@@ -8,7 +8,6 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerfiyAccessToken.js";
-import { OTPTemplate } from "../../Components/MailerComponents/OTPTemplate.js";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -52,12 +51,6 @@ export async function Login(req, res) {
     await user.save();
 
     const fullName = `${user.firstName} ${user.lastName}`.trim();
-
-    // await SendOTPInMail({
-    //     to: email,
-    //     subject: "Your OTP",
-    //     message: OTPTemplate(fullName, otp, user),
-    // });
 
     res.status(201).send({
       success: true,

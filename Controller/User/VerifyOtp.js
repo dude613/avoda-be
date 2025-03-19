@@ -1,4 +1,4 @@
-import { SendOTPInMail } from "../../Components/Transporter.js";
+import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
 import {
   generateAccessToken,
   generateRefreshToken,

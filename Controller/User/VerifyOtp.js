@@ -14,22 +14,22 @@ export async function VerifyOtp(req, res) {
     if (!user) {
       return res
         .status(400)
-        .json({ success: false, message: "User not found." });
+        .send({ success: false, message: "This email doesn't exist in database. Please use a different email!" });
     }
     if (user.verified === "true") {
-      return res.status(201).json({
-        success: true,
-        message: "Email already verified!",
+      return res.status(404).send({
+        success: false,
+        error: "This email already verified!",
       });
     }
     const otpRecord = await UserOtpSchema.findOne({ userId: user._id });
 
-    if (!otpRecord || otpRecord.otp !== String(otp)) {
-      return res.status(400).json({ success: false, message: "Invalid OTP." });
+    if (!otpRecord || otpRecord.otp !== otp) {
+      return res.status(400).send({ success: false, message: "Invalid OTP please check and try again." });
     }
 
     if (otpRecord.expiresAt < new Date()) {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
         message: "OTP expired. Please request a new one.",
       });
@@ -41,7 +41,7 @@ export async function VerifyOtp(req, res) {
     user.verified = true;
     user.refreshToken = refreshToken;
     await user.save();
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       message: "Email verified successfully!",
       user,
@@ -49,7 +49,7 @@ export async function VerifyOtp(req, res) {
     });
   } catch (error) {
     console.log("OTP Verification Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: error.message });
   }
 }
 
@@ -61,11 +61,11 @@ export async function ResendOtp(req, res) {
     if (!user) {
       return res
         .status(400)
-        .json({ success: false, message: "User not found." });
+        .send({ success: false, message: "User not found." });
     }
 
     if (user.verified === "true") {
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         message: "Email already verified!",
       });
@@ -76,10 +76,8 @@ export async function ResendOtp(req, res) {
 
     const existingOtp = await UserOtpSchema.findOne({ userId: user._id });
     if (existingOtp && existingOtp.expiresAt > new Date()) {
-      // Use the same OTP if it's still valid
       otp = existingOtp.otp;
     } else {
-      // Generate a new OTP if expired or doesn't exist
       otp = crypto.randomInt(100000, 999999).toString();
       await UserOtpSchema.findOneAndUpdate(
         { userId: user._id },
@@ -90,12 +88,12 @@ export async function ResendOtp(req, res) {
 
     await SendOTPInMail(otp, email);
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
-      message: "Verification code sent successfully!",
+      message: "User has been registered successfully!",
     });
   } catch (error) {
     console.log("OTP Resending Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: error.message });
   }
 }

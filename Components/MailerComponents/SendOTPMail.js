@@ -13,8 +13,6 @@ import {
 } from "../../Constants/MailerConstants.js";
 dotenv.config();
 
-
-
 export async function SendOTPInMail(otp, toEmail) {
   try {
     const verificationLink = `${VERIFICATION_LINK_BASE}?email=${encodeURIComponent(

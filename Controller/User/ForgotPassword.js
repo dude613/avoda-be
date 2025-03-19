@@ -83,6 +83,7 @@ const validate = (req, res) => {
 export async function SetNewPassword(req, res) {
     try {
         const { email, password } = req.body;
+        const passwordRegex = /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/;
 
         const validationResponse = validate(req, res);
         if (validationResponse !== true) {

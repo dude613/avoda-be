@@ -11,6 +11,8 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import { apiRouter } from "./Routes/Api.js";
 import { ConnectDatabase } from "./Components/ConnectDatabase.js";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { 
   SERVER_WORKING_MESSAGE, 
   BASE_URL, 
@@ -23,6 +25,12 @@ import {
 dotenv.config();
 const app = express();
 const server = http.createServer(app);
+app.use("/files", express.static("files"));
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use("/uploads", express.static(join(__dirname, "uploads")));
+
 const io = new Server(server, {
     cors: {
         origin: "*",

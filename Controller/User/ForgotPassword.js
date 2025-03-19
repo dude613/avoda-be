@@ -3,6 +3,19 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate.js";
+import {
+    EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    PASSWORD_REQUIRED_ERROR,
+    PASSWORD_COMPLEXITY_ERROR,
+    GENERIC_ERROR_MESSAGE,
+    PASSWORD_RESET_EMAIL_SENT,
+    PASSWORD_UPDATED_SUCCESS,
+    EMAIL_REGEX,
+    PASSWORD_REGEX
+} from "../../Constants/UserConstants.js";
+import { RESET_LINK_BASE } from "../../Constants/MailerConstants.js";
 
 
 dotenv.config();
@@ -21,7 +34,7 @@ export async function ForgotPasswordMail(req, res) {
         }
         const user = await UserSchema.findOne({ email });
         if (!user) {
-            return res.status(404).json({ success: false, error: "This email doesn't exist in our database. Please try another email." });
+            return res.status(404).json({ success: false, error: EMAIL_NOT_FOUND_ERROR });
         }
         const resetToken = crypto.randomBytes(32).toString("hex");
         const expiryTime = Date.now() + 15 * 60 * 1000;
@@ -36,10 +49,10 @@ export async function ForgotPasswordMail(req, res) {
             },
             { upsert: true, new: true }
         );
-        const resetLink = `http://localhost:5173/new-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
+        const resetLink = `${RESET_LINK_BASE}?email=${encodeURIComponent(email)}&token=${resetToken}`;
         const decodedLink = decodeURIComponent(resetLink);
         await ForgotTemplate(email, decodedLink);
-        res.status(200).send({ success: true, message: "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password." })
+        res.status(200).send({ success: true, message: PASSWORD_RESET_EMAIL_SENT })
         setTimeout(async () => {
             await UserSchema.updateOne(
                 { email, resetPasswordExpires: { $lt: Date.now() } },
@@ -48,22 +61,21 @@ export async function ForgotPasswordMail(req, res) {
         }, 15 * 60 * 1000);
     } catch (error) {
         console.log("error message forgot password:::", error.message);
-        res.status(500).json({ success: false, error: error.message || "An error occurred while processing your request." });
+        res.status(500).json({ success: false, error: error.message || GENERIC_ERROR_MESSAGE });
     }
 }
 
 const validate = (req, res) => {
     const { email } = req.body;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
         return res
             .status(400)
-            .send({ success: false, error: "email is required!" });
+            .send({ success: false, error: EMAIL_REQUIRED_ERROR });
     }
-    if (!emailRegex.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
         return res
             .status(400)
-            .send({ success: false, error: "Invalid email format!" });
+            .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
     }
     return true;
 };
@@ -79,22 +91,23 @@ export async function SetNewPassword(req, res) {
         }
 
         if (!password) {
-            return res.status(404).send({ success: false, error: "Password is required!" });
+            return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
         }
-        if (!passwordRegex.test(password)) {
-            return res.status(404).send({ success: false, error: "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character." })
+        if (!PASSWORD_REGEX.test(password)) {
+            return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
         }
 
         const user = await UserSchema.findOne({ email });
         if (!user) {
-            return res.status(404).json({ success: false, error: "This email doesn't exist in our database. Please try another email." });
+            return res.status(404).json({ success: false, error: EMAIL_NOT_FOUND_ERROR });
         }
 
         user.password = password;
         await user.save();
 
-        return res.status(200).json({ success: true, message: "Password updated successfully!" });
+        return res.status(200).json({ success: true, message: PASSWORD_UPDATED_SUCCESS });
     } catch (error) {
-        console.log("error set new password:::", error.message)
+        console.log("error set new password:::", error.message);
+        return res.status(500).json({ success: false, error: GENERIC_ERROR_MESSAGE });
     }
 }

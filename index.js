@@ -13,7 +13,14 @@ import { apiRouter } from "./Routes/Api.js";
 import { ConnectDatabase } from "./Components/ConnectDatabase.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-
+import { 
+  SERVER_WORKING_MESSAGE, 
+  BASE_URL, 
+  SOCKET_CONNECTION_EVENT, 
+  SOCKET_MESSAGE_EVENT, 
+  SOCKET_DISCONNECT_EVENT,
+  API_BASE_ROUTE
+} from "./Constants/AppConstants.js";
 
 dotenv.config();
 const app = express();
@@ -38,25 +45,28 @@ app.use(bodyParser.json());
 Sentry.setupExpressErrorHandler(app);
 
 app.get("/", (req, res) => {
-    res.send("Server working");
+    res.send(SERVER_WORKING_MESSAGE);
 });
 
-app.use("/api", apiRouter);
+app.use(API_BASE_ROUTE, apiRouter);
 ConnectDatabase();
 
-   
+
+// Optional fallthrough error handler
 app.use(function onError(err, req, res, next) {
+  // The error id is attached to `res.sentry` to be returned
+  // and optionally displayed to the user for support.
   res.statusCode = 500;
   res.end(res.sentry + "\n");
 });
 
-io.on("connection", (socket) => {
-    socket.on("message", (data) => {
-        io.emit("message", data);
+io.on(SOCKET_CONNECTION_EVENT, (socket) => {
+    socket.on(SOCKET_MESSAGE_EVENT, (data) => {
+        io.emit(SOCKET_MESSAGE_EVENT, data);
     });
-    socket.on("disconnect", () => { });
+    socket.on(SOCKET_DISCONNECT_EVENT, () => { });
 });
 
 server.listen(PORT, () => {
-    console.log(`http://localhost:${PORT}`);
+    console.log(`${BASE_URL}:${PORT}`);
 });

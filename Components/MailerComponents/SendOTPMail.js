@@ -1,14 +1,14 @@
 import nodemailer from "nodemailer";
-import { transporter } from "./Transporter.js";
+import { Transporter } from "./Transporter.js";
 import dotenv from "dotenv";
 dotenv.config();
 
 export async function SendOTPInMail(otp, toEmail) {
-    try {
-      const verificationLink = `http://localhost:5173/register/verifyCode?email=${encodeURIComponent(
-        toEmail
-      )}&otp=${otp}`;
-      const emailContent = `
+  try {
+    const verificationLink = `http://localhost:5173/register/verifyCode?email=${encodeURIComponent(
+      toEmail
+    )}&otp=${otp}`;
+    const emailContent = `
           <h2>Email Verification</h2>
           <p>Your OTP code is: <strong>${otp}</strong></p>
           <p>This OTP will expire in <strong>30 minutes</strong>.</p>
@@ -18,16 +18,15 @@ export async function SendOTPInMail(otp, toEmail) {
           </a>
           <p>If you didn't request this, please ignore this email.</p>
         `;
-  
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: toEmail,
-        subject: "Verify Your Email",
-        html: emailContent,
-      };
-  
-      await transporter.sendMail(mailOptions);
-    } catch (e) {
-      return;
-    }
+
+    const mailOptions = {
+      to : toEmail,
+      subject: "Verify Your Email",
+      htmlContent: emailContent,
+    };
+
+    await Transporter(mailOptions);
+  } catch (e) {
+    return;
   }
+}

@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import { transporter } from "./Transporter.js";
+// import { transporter } from "./Transporter.js";
 dotenv.config();
 
 export async function ForgotTemplate(email, resetLink) {
@@ -16,14 +16,14 @@ export async function ForgotTemplate(email, resetLink) {
             </div>
         `;
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: "Reset Your Password",
-            html: emailContent,
-        };
+        // const mailOptions = {
+        //     from: process.env.EMAIL_USER,
+        //     to: email,
+        //     subject: "Reset Your Password",
+        //     html: emailContent,
+        // };
 
-        const info = await transporter.sendMail(mailOptions);
+        // const info = await transporter.sendMail(mailOptions);
         return { success: true, message: "Email sent successfully." };
     } catch (error) {
         return { success: false, error: error.message };

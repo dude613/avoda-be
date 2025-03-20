@@ -9,7 +9,5 @@ const OtpSchema = new Schema(
   { versionKey: false }
 );
 
-const UserOtp = mongoose.model("Otp", OtpSchema);
-
 const UserOtpSchema = mongoose.model("Otp", OtpSchema);
 export default UserOtpSchema;

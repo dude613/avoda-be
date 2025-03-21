@@ -115,7 +115,6 @@ const validate = (members) => {
             return { success: false, error: `Organization not found please create organization first` };
         }
     }
-
     return { success: true };
 };
 

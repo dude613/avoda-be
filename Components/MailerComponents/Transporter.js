@@ -5,13 +5,13 @@ dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const Transporter = async ({ to, subject, htmlContent }) => {
+export const Transporter = async ({ to, subject, html }) => {
   try {
     const result = await resend.emails.send({
       from: process.env.RESEND_EMAIL_USER,
       to: to,
       subject: subject,
-      html: htmlContent,
+      html: html,
     });
     console.log("Email sent successfully:",result);
   } catch (error) {

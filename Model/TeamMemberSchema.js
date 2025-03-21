@@ -1,6 +1,9 @@
 import mongoose, { Schema } from "mongoose";
 
 const teamMemberSchema = new Schema({
+    name: {
+        type: String
+    },
     email: {
         type: String,
         required: true,
@@ -13,7 +16,7 @@ const teamMemberSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ["pending", "join"],
+        enum: ["pending", "active"],
         default: "pending"
     },
     organization: {
@@ -21,11 +24,11 @@ const teamMemberSchema = new Schema({
         ref: 'Organization',
         required: true
     },
-    resetToken: {  
+    resetToken: {
         type: String,
         required: false
     },
-    resetTokenExpiry: {  
+    resetTokenExpiry: {
         type: Date,
         required: false
     }

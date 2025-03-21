@@ -13,7 +13,6 @@ export const Transporter = async ({ to, subject, htmlContent }) => {
       subject: subject,
       html: htmlContent,
     });
-    console.log("Email sent successfully:",result);
   } catch (error) {
     console.error("Error sending email:",error);
   }

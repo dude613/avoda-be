@@ -5,7 +5,7 @@ dotenv.config();
 
 export async function SendOTPInMail(otp, toEmail) {
   try {
-    const verificationLink = `http://localhost:5173/register/verifyCode?email=${encodeURIComponent(
+    const verificationLink = `${process.env.FRONTEND_URL}/register/verifyCode?email=${encodeURIComponent(
       toEmail
     )}&otp=${otp}`;
     const emailContent = `
@@ -20,7 +20,7 @@ export async function SendOTPInMail(otp, toEmail) {
         `;
 
     const mailOptions = {
-      to : toEmail,
+      to: toEmail,
       subject: "Verify Your Email",
       htmlContent: emailContent,
     };

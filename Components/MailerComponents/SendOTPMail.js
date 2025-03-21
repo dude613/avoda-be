@@ -22,7 +22,7 @@ export async function SendOTPInMail(otp, toEmail) {
     const mailOptions = {
       to : toEmail,
       subject: "Verify Your Email",
-      htmlContent: emailContent,
+      html: emailContent,
     };
 
     await Transporter(mailOptions);

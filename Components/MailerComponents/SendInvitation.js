@@ -24,7 +24,7 @@ export async function SendInvitation(resetLinks) {
             // };
 
             // const info = await transporter.sendMail(mailOptions);
-            console.log(`Email sent successfully to ${email}`,info);
+            console.log(`Email sent successfully to ${email}`);
         }
 
         return { success: true, message: "Emails sent successfully." };

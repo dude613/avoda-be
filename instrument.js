@@ -12,3 +12,9 @@ Sentry.init({
   // Set sampling rate for profiling - this is relative to tracesSampleRate
   profilesSampleRate: 1.0,
 });
+
+//test
+export function add(a, b) {
+  return a + b;
+}
+

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "nodemon index.js",
-    "test": "npm run test "
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Avi",
   "license": "ISC",
@@ -32,5 +32,8 @@
     "resend": "^4.1.2",
     "socket.io": "^4.8.1",
     "url": "^0.11.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

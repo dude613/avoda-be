@@ -28,7 +28,6 @@ export async function GetProfileData(req, res) {
     }
 }
 
-
 export async function UpdateProfileData(req, res) {
     try {
         const { userId, name, profilePicture, address } = req.body;

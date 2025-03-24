@@ -12,7 +12,7 @@ import { GetProfileData } from "../../Controller/User/UserProfile.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
-authRouter.post("/verify-otp", VerifyOtp);
+authRouter.post("/verify-otp", VerifyOtp); 
 authRouter.post("/resend-otp", ResendOtp);
 authRouter.post("/google-register", registerWithGoogle);
 authRouter.post("/login", Login);

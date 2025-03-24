@@ -14,7 +14,7 @@ import {
   PASSWORD_REQUIRED_INCORRECT,
   USER_LOGIN_SUCCESS
 } from "../../Constants/UserConstants.js";
-
+ 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
 const client = new OAuth2Client(CLIENT_ID);
@@ -45,7 +45,6 @@ export async function Login(req, res) {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
     user.refreshToken = refreshToken;
     user.otp = otp;
     user.otpExpiry = otpExpiry;
@@ -82,7 +81,7 @@ export const loginWithGoogle = async (req, res) => {
     const { id: googleId, email, name, picture } = payload;
     if (!googleId) {
       return res
-        .status(400)
+        .status(400) 
         .send({ success: false, error: "Invalid Google ID" });
     }
     let user = await UserSchema.findOne({ email });

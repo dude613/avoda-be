@@ -7,7 +7,13 @@ import { OAuth2Client } from "google-auth-library";
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../../Components/VerfiyAccessToken.js";
+} from "../../Components/VerifyAccessToken.js";
+import {
+  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
+  , PASSWORD_COMPLEXITY_ERROR, GENERIC_ERROR_MESSAGE, EMAIL_REGEX, PASSWORD_REGEX,
+  PASSWORD_REQUIRED_INCORRECT,
+  USER_LOGIN_SUCCESS
+} from "../../Constants/UserConstants.js";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -26,12 +32,12 @@ export async function Login(req, res) {
     if (!user) {
       return res
         .status(400)
-        .send({ success: false, error: "We couldn't find an account with this email. Please sign up" });
+        .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).send({ success: false, error: "Your password is not correct!" });
+      return res.status(400).send({ success: false, error: PASSWORD_REQUIRED_INCORRECT });
     }
 
     const accessToken = generateAccessToken(user);
@@ -45,11 +51,9 @@ export async function Login(req, res) {
     user.otpExpiry = otpExpiry;
     await user.save();
 
-    const fullName = `${user.firstName} ${user.lastName}`.trim();
-
     res.status(201).send({
       success: true,
-      message: "User logged in successfully",
+      message: USER_LOGIN_SUCCESS,
       user,
       accessToken,
     });
@@ -57,7 +61,7 @@ export async function Login(req, res) {
     console.error("Error during login:", error);
     res
       .status(500)
-      .send({ success: false, error: "Server error, please try again later." });
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
 
@@ -66,7 +70,7 @@ export const loginWithGoogle = async (req, res) => {
   if (!idToken)
     return res
       .status(400)
-      .json({ success: false, error: "ID token is required" });
+      .send({ success: false, error: "ID token is required" });
   try {
     client.setCredentials({ access_token: idToken });
     const response = await client.request({ url: AUTH_URL });
@@ -74,12 +78,12 @@ export const loginWithGoogle = async (req, res) => {
     if (!payload)
       return res
         .status(401)
-        .json({ success: false, error: "Invalid ID token" });
+        .send({ success: false, error: "Invalid ID token" });
     const { id: googleId, email, name, picture } = payload;
     if (!googleId) {
       return res
         .status(400)
-        .json({ success: false, error: "Invalid Google ID" });
+        .send({ success: false, error: "Invalid Google ID" });
     }
     let user = await UserSchema.findOne({ email });
 
@@ -92,45 +96,44 @@ export const loginWithGoogle = async (req, res) => {
       const refreshToken = generateRefreshToken(user);
       user.refreshToken = refreshToken;
       await user.save();
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
-        message: "User Login successfully",
+        message: USER_LOGIN_SUCCESS,
         user,
         accessToken,
       });
     } else {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
-        message: "User not found",
+        message: EMAIL_NOT_FOUND_ERROR,
       });
     }
   } catch (error) {
     console.error("Error during Login:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+      .send({ success: false, ERROR: GENERIC_ERROR_MESSAGE });
   }
 };
 
 const validate = (req, res) => {
   const { email, password } = req.body;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const passwordRegex = /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/;
+
   if (!email) {
     return res
       .status(400)
-      .send({ success: false, error: "email is required!" });
+      .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
-  if (!emailRegex.test(email)) {
+  if (!EMAIL_REGEX.test(email)) {
     return res
       .status(400)
-      .send({ success: false, error: "Invalid email format!" });
+      .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
   }
   if (!password) {
-    return res.status(404).send({ success: false, error: "Password is required!" });
+    return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
-  if (!passwordRegex.test(password)) {
-    return res.status(404).send({ success: false, error: "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character." })
+  if (!PASSWORD_REGEX.test(password)) {
+    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
   }
   return true;
 };

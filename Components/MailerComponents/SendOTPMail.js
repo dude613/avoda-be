@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { transporter } from "./Transporter.js";
+import { Transporter } from "./Transporter.js";
 import dotenv from "dotenv";
 import {
   EMAIL_VERIFICATION_HEADING,
@@ -29,13 +29,12 @@ export async function SendOTPInMail(otp, toEmail) {
         `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
       to: toEmail,
       subject: VERIFY_EMAIL_SUBJECT,
-      html: emailContent,
+      htmlContent: emailContent,
     };
 
-    await transporter.sendMail(mailOptions);
+    await Transporter(mailOptions);
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };

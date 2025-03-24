@@ -131,6 +131,7 @@ const validate = (req, res) => {
   return true;
 };
 
+
 export async function ResetPassword(req, res) {
   try {
     const { email, password } = req.body;

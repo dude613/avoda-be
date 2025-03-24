@@ -4,11 +4,17 @@ import { OAuth2Client } from "google-auth-library";
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../../Components/VerfiyAccessToken.js";
+} from "../../Components/VerifyAccessToken.js";
 import UserSchema from "../../Model/UserSchema.js";
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
-
+import {
+  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
+  ,EMAIL_REGEX,  
+  USER_SEND_OTP,
+  USER_REGISTER_SUCCESS,
+  USER_EMAIL_ALREADY_EXIST
+} from "../../Constants/UserConstants.js";
 
 dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -27,7 +33,7 @@ export async function Register(req, res) {
       if (user.verified === "true") {
         return res.status(400).send({
           success: false,
-          error: "This email is already registered. Please use a different email!",
+          error: EMAIL_NOT_FOUND_ERROR,
         });
       }
     } else {
@@ -45,11 +51,11 @@ export async function Register(req, res) {
     await SendOTPInMail(otp, email);
     res.status(201).send({
       success: true,
-      message: "OTP has been sent to your registered email address!",
+      message: USER_SEND_OTP,
     });
   } catch (error) {
     console.log("User Register Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
 
@@ -58,7 +64,7 @@ export const registerWithGoogle = async (req, res) => {
   if (!idToken)
     return res
       .status(400)
-      .json({ success: false, error: "ID token is required" });
+      .send({ success: false, error: "ID token is required" });
   try {
     client.setCredentials({ access_token: idToken });
     const response = await client.request({ url: AUTH_URL });
@@ -66,12 +72,12 @@ export const registerWithGoogle = async (req, res) => {
     if (!payload)
       return res
         .status(401)
-        .json({ success: false, error: "Invalid ID token" });
+        .send({ success: false, error: "Invalid ID token" });
     const { id: googleId, email, name, picture } = payload;
     if (!googleId) {
       return res
         .status(400)
-        .json({ success: false, error: "Invalid Google ID" });
+        .send({ success: false, error: "Invalid Google ID" });
     }
     let user = await UserSchema.findOne({ email });
     if (!user) {
@@ -87,40 +93,40 @@ export const registerWithGoogle = async (req, res) => {
       const refreshToken = generateRefreshToken(user);
       user.refreshToken = refreshToken;
       await user.save();
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
-        message: "User Registered successfully",
+        message: USER_REGISTER_SUCCESS,
         user,
         accessToken,
       });
     } else {
-      res.status(404).send({ success: false, msg: "This email  already exists" });
+      res.status(404).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
     }
   } catch (error) {
     console.error("Error during registration:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 };
 
 const validate = (req, res) => {
   const { email, password } = req.body;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
   if (!email) {
     return res
       .status(400)
-      .send({ success: false, error: "email is required!" });
+      .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
-  if (!emailRegex.test(email)) {
+  if (!EMAIL_REGEX.test(email)) {
     return res
       .status(400)
-      .send({ success: false, error: "Invalid email format!" });
+      .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
   }
   if (!password) {
     return res
       .status(400)
-      .send({ success: false, error: "password is required!" });
+      .send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
   return true;
 };
@@ -138,7 +144,7 @@ export async function ResetPassword(req, res) {
       return res.status(400).send({
         success: false,
         error:
-          "This email is already registered. Please use a different email!",
+          USER_EMAIL_ALREADY_EXIST,
       });
     }
     user = new UserSchema({ email, password });
@@ -154,10 +160,10 @@ export async function ResetPassword(req, res) {
     await SendOTPInMail(otp, email);
     res.status(201).send({
       success: true,
-      message: "User registered successfully!",
+      message: USER_REGISTER_SUCCESS,
     });
   } catch (error) {
     console.log("User Register Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }

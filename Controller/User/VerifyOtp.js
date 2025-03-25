@@ -17,6 +17,7 @@ import {
   USER_OTP_EXPIRE,
   USER_EMAIL_VERIFIED
 } from "../../Constants/UserConstants.js";
+import Organization from "../../Model/OrganizationSchema.js";
 
 
 export async function VerifyOtp(req, res) {
@@ -53,10 +54,19 @@ export async function VerifyOtp(req, res) {
     user.verified = true;
     user.refreshToken = refreshToken;
     await user.save();
+
+    const organization = await Organization.findOne({ user: user._id });
+    if (!organization) {
+      return res.status(400).send({ success: false, error: "Organization not found for this user!" });
+    }
+
+    const onboardingSkipped = organization.onboardingSkipped;
+
     return res.status(200).send({
       success: true,
       message: USER_EMAIL_VERIFIED,
       user,
+      onboardingSkipped,
       accessToken,
     });
   } catch (error) {
@@ -78,7 +88,7 @@ export async function ResendOtp(req, res) {
 
     if (user.verified === "true") {
       return res.status(201).send({
-        success: true,  
+        success: true,
         message: USER_EMAIL_VERIFIED,
       });
     }

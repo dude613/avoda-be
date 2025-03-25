@@ -1,4 +1,3 @@
-import nodemailer from "nodemailer";
 import { Transporter } from "./Transporter.js";
 import dotenv from "dotenv";
 import {
@@ -9,10 +8,10 @@ import {
   VERIFY_EMAIL_SUBJECT,
   IGNORE_EMAIL_MESSAGE,
   VERIFY_EMAIL_BUTTON_TEXT,
-  VERIFICATION_LINK_BASE
+  VERIFICATION_LINK_BASE,
+  EMAIL_SENT_SUCCESSFULLY_MESSAGE
 } from "../../Constants/MailerConstants.js";
 dotenv.config();
-
 export async function SendOTPInMail(otp, toEmail) {
   try {
     const verificationLink = `${VERIFICATION_LINK_BASE}?email=${encodeURIComponent(
@@ -35,7 +34,7 @@ export async function SendOTPInMail(otp, toEmail) {
     };
 
     await Transporter(mailOptions);
-    return { success: true };
+    return { success: true, message: EMAIL_SENT_SUCCESSFULLY_MESSAGE };
   } catch (e) {
     return { success: false, error: e.message };
   }

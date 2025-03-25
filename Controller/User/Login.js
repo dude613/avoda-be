@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import UserSchema from "../../Model/UserSchema.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -14,6 +13,7 @@ import {
   PASSWORD_REQUIRED_INCORRECT,
   USER_LOGIN_SUCCESS
 } from "../../Constants/UserConstants.js";
+import Organization from "../../Model/OrganizationSchema.js";
  
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -50,12 +50,21 @@ export async function Login(req, res) {
     user.otpExpiry = otpExpiry;
     await user.save();
 
+    const organization = await Organization.findOne({ user: user._id });
+    if (!organization) {
+      return res.status(400).send({ success: false, error: "Organization not found for this user!" });
+    }
+
+    const onboardingSkipped = organization.onboardingSkipped;
+
     res.status(201).send({
       success: true,
       message: USER_LOGIN_SUCCESS,
       user,
+      onboardingSkipped,
       accessToken,
     });
+    
   } catch (error) {
     console.error("Error during login:", error);
     res

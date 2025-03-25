@@ -6,7 +6,6 @@ import { generateAccessToken } from "../../Components/VerifyAccessToken.js";
 export async function AddTeamMember(req, res) {
     try {
         const { members } = req.body;
-
         const validationResponse = validate(members);
         if (!validationResponse.success) {
             return res.status(400).send(validationResponse);
@@ -22,14 +21,12 @@ export async function AddTeamMember(req, res) {
             if (!org) {
                 return res.status(404).send({ success: false, error: `Organization with ID ${orgId} not found!` });
             }
-
             const existingTeamMember = await TeamMember.findOne({ email, organization: orgId });
             if (existingTeamMember) {
                 return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
             }
             const user = { email, _id: orgId };
             const accessToken = generateAccessToken(user);
-
             const resetTokenExpiry = new Date();
             resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
 
@@ -83,7 +80,6 @@ const validate = (members) => {
     }
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
     const nameRegex = /^[A-Za-z ]+$/;
-
     const seenEmails = new Set();
 
     for (let i = 0; i < members.length; i++) {

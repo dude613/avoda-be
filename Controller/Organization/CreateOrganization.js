@@ -49,7 +49,6 @@ export async function SkipOrganization(req, res) {
     }
 }
 
-
 export async function UpdateOrganization(req, res) {
     try {
         const { userId, OrgId, name, industry, size } = req.body;
@@ -93,7 +92,6 @@ export async function GetOrganization(req, res) {
         console.log(error.message, 'error message get organization list');
     }
 }
-
 
 const validate = async (req, res) => {
     try {

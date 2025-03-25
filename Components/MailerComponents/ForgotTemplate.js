@@ -1,6 +1,4 @@
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-// import { transporter } from "./Transporter.js";
 import {
     PASSWORD_RESET_REQUEST_HEADING,
     RESET_PASSWORD_LINK_TEXT,
@@ -23,12 +21,6 @@ export async function ForgotTemplate(email, resetLink) {
             </div>
         `;
 
-        // const mailOptions = {
-        //     from: process.env.EMAIL_USER,
-        //     to: email,
-        //     subject: RESET_YOUR_PASSWORD_SUBJECT,
-        //     html: emailContent,
-        // };
         const mailOptions = {
             to: email,
             subject: `${RESET_YOUR_PASSWORD_SUBJECT}`,

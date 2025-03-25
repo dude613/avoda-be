@@ -14,7 +14,7 @@ import {
   USER_LOGIN_SUCCESS
 } from "../../Constants/UserConstants.js";
 import Organization from "../../Model/OrganizationSchema.js";
- 
+
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
 const client = new OAuth2Client(CLIENT_ID);
@@ -49,13 +49,14 @@ export async function Login(req, res) {
     user.otp = otp;
     user.otpExpiry = otpExpiry;
     await user.save();
-
+    let onboardingSkipped = false;
     const organization = await Organization.findOne({ user: user._id });
     if (!organization) {
       return res.status(400).send({ success: false, error: "Organization not found for this user!" });
     }
-
-    const onboardingSkipped = organization.onboardingSkipped;
+    if (organization) {
+      onboardingSkipped = organization.onboardingSkipped;
+    }
 
     res.status(201).send({
       success: true,
@@ -64,7 +65,7 @@ export async function Login(req, res) {
       onboardingSkipped,
       accessToken,
     });
-    
+
   } catch (error) {
     console.error("Error during login:", error);
     res
@@ -90,7 +91,7 @@ export const loginWithGoogle = async (req, res) => {
     const { id: googleId, email, name, picture } = payload;
     if (!googleId) {
       return res
-        .status(400) 
+        .status(400)
         .send({ success: false, error: "Invalid Google ID" });
     }
     let user = await UserSchema.findOne({ email });

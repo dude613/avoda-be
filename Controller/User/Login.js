@@ -51,9 +51,7 @@ export async function Login(req, res) {
     await user.save();
     let onboardingSkipped = false;
     const organization = await Organization.findOne({ user: user._id });
-    if (!organization) {
-      return res.status(400).send({ success: false, error: "Organization not found for this user!" });
-    }
+    
     if (organization) {
       onboardingSkipped = organization.onboardingSkipped;
     }

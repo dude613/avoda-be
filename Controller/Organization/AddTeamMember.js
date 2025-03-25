@@ -84,7 +84,6 @@ const validate = (members) => {
 
     for (let i = 0; i < members.length; i++) {
         const { email, role, orgId, name } = members[i];
-
         if (!name) {
             return { success: false, error: `Name is required for member ${i + 1}` }
         }
@@ -130,8 +129,8 @@ export async function GetAllTeamMember(req, res) {
         }
 
         const teamMembers = teamMembersWithOrg.map(member => ({
-            ...member.toObject(), 
-            organizationName: org.name, 
+            ...member.toObject(),
+            organizationName: org.name,
         }));
 
         return res.status(200).send({

@@ -51,7 +51,7 @@ export async function Login(req, res) {
     await user.save();
     let onboardingSkipped = false;
     const organization = await Organization.findOne({ user: user._id });
-    
+
     if (organization) {
       onboardingSkipped = organization.onboardingSkipped;
     }

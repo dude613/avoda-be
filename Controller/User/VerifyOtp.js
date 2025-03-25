@@ -7,17 +7,13 @@ import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import UserSchema from "../../Model/UserSchema.js";
 import crypto from "crypto";
 import {
-  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
-  , EMAIL_REGEX,
-  USER_SEND_OTP,
+  EMAIL_NOT_FOUND_ERROR,
   USER_REGISTER_SUCCESS,
-  USER_EMAIL_ALREADY_EXIST,
   USER_EMAIL_ALREADY_VERIFIED,
   USER_INVALID_OTP,
   USER_OTP_EXPIRE,
   USER_EMAIL_VERIFIED
 } from "../../Constants/UserConstants.js";
-import Organization from "../../Model/OrganizationSchema.js";
 
 
 export async function VerifyOtp(req, res) {
@@ -29,6 +25,7 @@ export async function VerifyOtp(req, res) {
         .status(400)
         .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
+
     if (user.verified === "true") {
       return res.status(404).send({
         success: false,
@@ -54,18 +51,11 @@ export async function VerifyOtp(req, res) {
     user.verified = true;
     user.refreshToken = refreshToken;
     await user.save();
-    let onboardingSkipped = false;
-    const organization = await Organization.findOne({ user: user._id });
-  
-    if (organization) {
-      onboardingSkipped = organization.onboardingSkipped;
-    }
 
     return res.status(200).send({
       success: true,
       message: USER_EMAIL_VERIFIED,
       user,
-      onboardingSkipped,
       accessToken,
     });
   } catch (error) {

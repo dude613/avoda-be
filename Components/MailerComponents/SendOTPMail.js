@@ -1,6 +1,9 @@
 import { Transporter } from "./Transporter.js";
 import dotenv from "dotenv";
-import {
+import { mailerContent } from "../../Constants/MailerConstants.js";
+dotenv.config();
+
+const {
   EMAIL_VERIFICATION_HEADING,
   OTP_MESSAGE,
   OTP_EXPIRATION_PREFIX,
@@ -10,8 +13,9 @@ import {
   VERIFY_EMAIL_BUTTON_TEXT,
   VERIFICATION_LINK_BASE,
   EMAIL_SENT_SUCCESSFULLY_MESSAGE
-} from "../../Constants/MailerConstants.js";
-dotenv.config();
+} = mailerContent
+
+
 export async function SendOTPInMail(otp, toEmail) {
   try {
     const verificationLink = `${VERIFICATION_LINK_BASE}?email=${encodeURIComponent(

@@ -13,14 +13,16 @@ import { apiRouter } from "./Routes/Api.js";
 import { ConnectDatabase } from "./Components/ConnectDatabase.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { 
-  SERVER_WORKING_MESSAGE, 
-  BASE_URL, 
-  SOCKET_CONNECTION_EVENT, 
-  SOCKET_MESSAGE_EVENT, 
-  SOCKET_DISCONNECT_EVENT,
-  API_BASE_ROUTE
-} from "./Constants/AppConstants.js";
+import { appContent } from "./Constants/AppConstants.js";
+
+const {
+    SERVER_WORKING_MESSAGE,
+    BASE_URL,
+    SOCKET_CONNECTION_EVENT,
+    SOCKET_MESSAGE_EVENT,
+    SOCKET_DISCONNECT_EVENT,
+    API_BASE_ROUTE
+} = appContent;
 
 dotenv.config();
 const app = express();
@@ -52,12 +54,9 @@ app.use(API_BASE_ROUTE, apiRouter);
 ConnectDatabase();
 
 
-// Optional fallthrough error handler
 app.use(function onError(err, req, res, next) {
-  // The error id is attached to `res.sentry` to be returned
-  // and optionally displayed to the user for support.
-  res.statusCode = 500;
-  res.end(res.sentry + "\n");
+    res.statusCode = 500;
+    res.end(res.sentry + "\n");
 });
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {

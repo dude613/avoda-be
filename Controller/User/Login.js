@@ -7,13 +7,15 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import {
+import { userContent } from "../../Constants/UserConstants.js";
+import Organization from "../../Model/OrganizationSchema.js";
+
+const {
   EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
   , PASSWORD_COMPLEXITY_ERROR, GENERIC_ERROR_MESSAGE, EMAIL_REGEX, PASSWORD_REGEX,
   PASSWORD_REQUIRED_INCORRECT,
   USER_LOGIN_SUCCESS
-} from "../../Constants/UserConstants.js";
-import Organization from "../../Model/OrganizationSchema.js";
+} = userContent;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;

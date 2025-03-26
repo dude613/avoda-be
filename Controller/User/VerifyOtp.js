@@ -6,15 +6,16 @@ import {
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import UserSchema from "../../Model/UserSchema.js";
 import crypto from "crypto";
-import {
+import { userContent } from "../../Constants/UserConstants.js";
+
+const {
   EMAIL_NOT_FOUND_ERROR,
   USER_REGISTER_SUCCESS,
   USER_EMAIL_ALREADY_VERIFIED,
   USER_INVALID_OTP,
   USER_OTP_EXPIRE,
   USER_EMAIL_VERIFIED
-} from "../../Constants/UserConstants.js";
-
+} = userContent
 
 export async function VerifyOtp(req, res) {
   try {

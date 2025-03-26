@@ -3,8 +3,11 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate.js";
-import {
-    EMAIL_NOT_FOUND_ERROR,
+import { userContent } from "../../Constants/UserConstants.js";
+import { mailerContent } from "../../Constants/MailerConstants.js";
+dotenv.config();
+
+const { EMAIL_NOT_FOUND_ERROR,
     EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR,
     PASSWORD_REQUIRED_ERROR,
@@ -13,17 +16,13 @@ import {
     PASSWORD_RESET_EMAIL_SENT,
     PASSWORD_UPDATED_SUCCESS,
     EMAIL_REGEX,
-    PASSWORD_REGEX
-} from "../../Constants/UserConstants.js";
-import { RESET_LINK_BASE } from "../../Constants/MailerConstants.js";
+    PASSWORD_REGEX } = userContent;
 
-
-dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
 const client = new OAuth2Client(CLIENT_ID);
 const FRONTEND_URL = process.env.FRONTEND_URL;
-
+const { RESET_LINK_BASE } = mailerContent;
 
 export async function ForgotPasswordMail(req, res) {
     try {

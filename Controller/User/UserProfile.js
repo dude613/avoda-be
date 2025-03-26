@@ -1,8 +1,10 @@
 import UserSchema from "../../Model/UserSchema.js";
-import crypto from "crypto";
-import {
-    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
-    , EMAIL_REGEX,
+import { userContent } from "../../Constants/UserConstants.js";
+
+const {
+    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, 
+    INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR,
+    EMAIL_REGEX,
     USER_SEND_OTP,
     USER_REGISTER_SUCCESS,
     USER_EMAIL_ALREADY_EXIST,
@@ -11,7 +13,7 @@ import {
     USER_OTP_EXPIRE,
     USER_EMAIL_VERIFIED,
     USER_PROFILE_DATA_SUCCESS
-} from "../../Constants/UserConstants.js";
+} = userContent;
 
 export async function GetProfileData(req, res) {
     try {

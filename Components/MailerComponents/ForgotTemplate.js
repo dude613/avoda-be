@@ -1,14 +1,16 @@
 import dotenv from "dotenv";
-import {
+import { mailerContent } from "../../Constants/MailerConstants.js";
+import { Transporter } from "./Transporter.js";
+dotenv.config();
+
+const {
     PASSWORD_RESET_REQUEST_HEADING,
     RESET_PASSWORD_LINK_TEXT,
     RESET_PASSWORD_BUTTON_TEXT,
     IGNORE_RESET_EMAIL_MESSAGE,
     RESET_YOUR_PASSWORD_SUBJECT,
     EMAIL_SENT_SUCCESSFULLY_MESSAGE
-} from "../../Constants/MailerConstants.js";
-import { Transporter } from "./Transporter.js";
-dotenv.config();
+} = mailerContent;
 
 export async function ForgotTemplate(email, resetLink) {
     try {

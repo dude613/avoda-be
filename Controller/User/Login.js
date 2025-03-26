@@ -118,7 +118,6 @@ export const loginWithGoogle = async (req, res) => {
 
 const validate = (req, res) => {
   const { email, password } = req.body;
-
   if (!email) {
     return res
       .status(400)

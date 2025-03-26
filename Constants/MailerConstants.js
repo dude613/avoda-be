@@ -1,7 +1,7 @@
 
 import dotenv from "dotenv";
 dotenv.config();
-const FRONTEND_URL = process.env.FRONTEND_URL;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export const mailerContent = {
     EMAIL_VERIFICATION_HEADING: "Email Verification",

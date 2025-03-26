@@ -13,7 +13,7 @@ const {
   VERIFY_EMAIL_BUTTON_TEXT,
   VERIFICATION_LINK_BASE,
   EMAIL_SENT_SUCCESSFULLY_MESSAGE
-} = mailerContent
+} = mailerContent;
 
 
 export async function SendOTPInMail(otp, toEmail) {

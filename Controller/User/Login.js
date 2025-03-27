@@ -23,7 +23,6 @@ const client = new OAuth2Client(CLIENT_ID);
 
 export async function Login(req, res) {
   const { email, password } = req.body;
-
   const validationResponse = validate(req, res);
   if (validationResponse !== true) {
     return;

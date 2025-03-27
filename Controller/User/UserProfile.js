@@ -2,7 +2,7 @@ import UserSchema from "../../Model/UserSchema.js";
 import { userContent } from "../../Constants/UserConstants.js";
 
 const {
-    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, 
+    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR,
     EMAIL_REGEX,
     USER_SEND_OTP,
@@ -17,7 +17,7 @@ const {
 
 export async function GetProfileData(req, res) {
     try {
-        const { userId } = req.body;
+        const { userId } = req.params;
 
         const user = await UserSchema.findById(userId);
         if (!user) {
@@ -32,20 +32,31 @@ export async function GetProfileData(req, res) {
 
 export async function UpdateProfileData(req, res) {
     try {
-        const { userId, name, profilePicture, address } = req.body;
+        const { userId, name, email, role } = req.body;
 
         const user = await UserSchema.findById(userId);
         if (!user) {
-            return res.status(404).send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
+            return res.status(404).send({ success: false, error: "User not found" });
         }
+
+        user.userName = name || user.userName; 
+        user.email = email || user.email;
+        user.role = role || user.role; 
+
+        await user.save();
 
         return res.status(200).send({
             success: true,
             message: "User profile updated successfully",
-            data: user
+            data: {
+                userName: user.userName,
+                email: user.email,
+                role: user.role,
+            },
         });
     } catch (error) {
         console.error("Error updating user profile: ", error);
         return res.status(500).send({ success: false, error: "Server error" });
     }
 }
+

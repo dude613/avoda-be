@@ -8,7 +8,7 @@ import { Login, loginWithGoogle } from "../../Controller/User/Login.js";
 import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp.js";
 import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/ForgotPassword.js";
 import { uploadImages } from "../../Components/Uploads/UploadImage.js";
-import { GetProfileData } from "../../Controller/User/UserProfile.js";
+import { GetProfileData, UpdateProfileData } from "../../Controller/User/UserProfile.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
@@ -20,7 +20,8 @@ authRouter.post("/google-login", loginWithGoogle);
 authRouter.post("/forgot-password", ForgotPasswordMail);
 authRouter.post("/reset-password", ResetPassword);
 authRouter.post("/new-password", SetNewPassword);
-authRouter.post("/get-profile",GetProfileData);
+authRouter.get("/get-profile/:userId", GetProfileData);
+authRouter.put("/update-profile/",UpdateProfileData);
 
 authRouter.post(
   "/upload-image",

@@ -19,6 +19,6 @@ export const userContent = {
     USER_SEND_OTP : "OTP has been sent to your registered email address!",
     USER_PROFILE_DATA_SUCCESS : "user details fetch successfully",
     EMAIL_REGEX : /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    PASSWORD_REGEX : /^(?:.*[A-Z])(?:.*\d)(?:.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    PASSWORD_REGEX : /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
 }
 

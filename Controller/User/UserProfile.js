@@ -34,14 +34,19 @@ export async function UpdateProfileData(req, res) {
     try {
         const { userId, name, email, role } = req.body;
 
+        const validationResponse = validate(req, res);
+        if (validationResponse !== true) {
+            return;
+        }
+
         const user = await UserSchema.findById(userId);
         if (!user) {
             return res.status(404).send({ success: false, error: "User not found" });
         }
 
-        user.userName = name || user.userName; 
+        user.userName = name || user.userName;
         user.email = email || user.email;
-        user.role = role || user.role; 
+        user.role = role || user.role;
 
         await user.save();
 
@@ -60,3 +65,23 @@ export async function UpdateProfileData(req, res) {
     }
 }
 
+const validate = (req, res) => {
+    const { email, role } = req.body;
+    if (!email) {
+        return res
+            .status(400)
+            .send({ success: false, error: EMAIL_REQUIRED_ERROR });
+    }
+    if (!EMAIL_REGEX.test(email)) {
+        return res
+            .status(400)
+            .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+    }
+    const validRoles = ['user', 'admin', 'employee', 'manager'];
+    if (role && !validRoles.includes(role)) {
+        return res
+            .status(400)
+            .send({ success: false, error: "Invalid role. Valid roles are: user, admin, employee, manager." });
+    }
+    return true;
+};

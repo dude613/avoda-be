@@ -8,8 +8,9 @@ import { Login, loginWithGoogle } from "../../Controller/User/Login.js";
 import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp.js";
 import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/ForgotPassword.js";
 import { uploadImages } from "../../Components/Uploads/UploadImage.js";
-import { GetProfileData, UpdateProfileData } from "../../Controller/User/UserProfile.js";
+import { GetProfileData, UpdateProfileData , UpdateProfilePicture } from "../../Controller/User/UserProfile.js";
 import { verifyAccessToken } from "../../Components/VerifyAccessToken.js";
+import UserSchema from "../../Model/UserSchema.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
@@ -26,20 +27,10 @@ authRouter.put("/update-profile/", verifyAccessToken, UpdateProfileData);
 
 authRouter.post(
   "/upload-image",
-  uploadImages,
-  (req, res) => {
-    const uploadedFile = req.files?.images?.[0];
-    if (!uploadedFile) {
-      return res.status(400).json({ message: "No image file uploaded." });
-    }
-    const image = {
-      filename: uploadedFile.filename,
-      mimetype: uploadedFile.mimetype,
-      size: uploadedFile.size,
-    };
-    return res.status(201).json({
-      message: "Image uploaded successfully.",
-      image,
-    });
+  uploadImages, 
+  UpdateProfilePicture, 
+  (err, req, res, next) => {
+    console.error(err); 
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 );

@@ -19,6 +19,11 @@ const teamMemberSchema = new Schema({
         enum: ["pending", "active"],
         default: "pending"
     },
+    userDeleteStatus : {
+        type: String,
+        enum : ["active","archive"],
+        default : "active"
+    },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Organization',

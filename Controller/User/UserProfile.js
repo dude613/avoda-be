@@ -1,6 +1,7 @@
 import UserSchema from "../../Model/UserSchema.js";
 import { userContent } from "../../Constants/UserConstants.js";
-
+import dotenv from "dotenv";
+dotenv.config();
 const {
     EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR,
@@ -14,6 +15,7 @@ const {
     USER_EMAIL_VERIFIED,
     USER_PROFILE_DATA_SUCCESS
 } = userContent;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
 
 export async function GetProfileData(req, res) {
     try {
@@ -65,6 +67,36 @@ export async function UpdateProfileData(req, res) {
     }
 }
 
+export async function UpdateProfilePicture(req, res) {
+    try {
+        const uploadedFile = req.files?.images?.[0];
+        if (!uploadedFile) {
+            return res.status(400).json({ message: "No image file uploaded." });
+        }
+        const imagePath = `${BACKEND_URL}/uploads/${uploadedFile.filename}`;
+        const userId = req.body.userId;
+        const user = await UserSchema.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        user.picture = imagePath;
+        await user.save();
+
+        return res.status(201).send({
+            success: true,
+            message: "Image uploaded and profile updated successfully.",
+            image: {
+                filename: uploadedFile.filename,
+                path: imagePath,
+            },
+        });
+    } catch (error) {
+        console.error("Error updating user profile picture:", error);
+        res.status(500).json({ message: "Error updating user profile." });
+    }
+}
 const validate = (req, res) => {
     const { email, role } = req.body;
     if (!email) {

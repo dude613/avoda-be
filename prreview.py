@@ -22,11 +22,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # --- Helper Functions ---
 
-def get_changed_files(OWNER: str, repo: str, pr_number: int, github_token: str):
+def get_changed_files(owner: str, repo: str, pr_number: int, github_token: str):
     """
     Retrieve the list of changed files (with patch/diff data) in a PR.
     """
-    url = f"{GITHUB_API_URL}/repos/{OWNER}/{REPO}/pulls/{int(PR_NUMBER)}/files"
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/pulls/{pr_number}/files"
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3+json",

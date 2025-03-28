@@ -94,7 +94,7 @@ export async function UpdateProfilePicture(req, res) {
         });
     } catch (error) {
         console.error("Error updating user profile picture:", error);
-        res.status(500).json({ message: "Error updating user profile." });
+        return res.status(500).json({ message: "Error updating user profile." });
     }
 }
 const validate = (req, res) => {

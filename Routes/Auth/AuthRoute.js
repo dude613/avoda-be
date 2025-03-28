@@ -10,7 +10,6 @@ import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/Forgot
 import { uploadImages } from "../../Components/Uploads/UploadImage.js";
 import { GetProfileData, UpdateProfileData , UpdateProfilePicture } from "../../Controller/User/UserProfile.js";
 import { verifyAccessToken } from "../../Components/VerifyAccessToken.js";
-import UserSchema from "../../Model/UserSchema.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
@@ -32,5 +31,6 @@ authRouter.post(
   (err, req, res, next) => {
     console.error(err); 
     res.status(500).json({ message: "Internal Server Error", error: err.message });
+    next();
   }
 );

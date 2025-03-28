@@ -143,3 +143,27 @@ export async function GetAllTeamMember(req, res) {
         return res.status(500).send({ error: "Internal server error. Please try again!" });
     }
 }
+
+
+export async function DeleteUser(req, res) {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(404).send({ success: false, error: "User Id required!" })
+        }
+        const user = await TeamMember.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found!" });
+        }
+        user.userDeleteStatus = "archive";
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "User archived successfully!",
+        });
+    } catch (error) {
+        console.log("Error delete team members:", error.message);
+        return res.status(500).send({ error: "Internal server error. Please try again!" });
+    }
+}

@@ -93,6 +93,7 @@ def main():
     )
 
     aggregated_diff = ""
+    total_diff_size = 0
     for file_info in files:
         filename = file_info.get("filename")
         patch = file_info.get("patch")

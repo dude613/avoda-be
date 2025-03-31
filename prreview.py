@@ -137,7 +137,7 @@ def main():
 
     if os.path.exists(output_filename):
         print("Logging AI PR Review...")
-        with open(output_filename, "r")as f:
+        with open(output_filename, "r") as f:
             print(f.read())
     else:
         print("No AI PR Review found.")

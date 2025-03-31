@@ -33,6 +33,6 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
         run: python prreview.py
 
-      - name: Log PR Review Summary
-        run: cat pr_review_summary.txt
+      # - name: Log PR Review Summary
+      #   run: cat pr_review_summary.txt
 

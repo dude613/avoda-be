@@ -5,6 +5,7 @@ import os
 GITHUB_API_URL = "https://api.github.com"
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 MODEL_NAME = "o3-mini"
+MIN_DIFF_SIZE = 100
 
 # Our base prompt without the diff.
 BASE_PROMPT = (
@@ -36,6 +37,13 @@ def get_changed_files(owner: str, repo: str, pr_number: int, github_token: str):
     response.raise_for_status()
     return response.json()
 
+def calculate_diff_size(diff_text: str):
+    """
+    Calculate the size of the diff by counting added and removed characters.
+    """
+    added_count = diff_text.count("\n+")
+    removed_count = diff_text.count("\n-")
+    return added_count + removed_count
 def post_comment(review):
     url = f"{GITHUB_API_URL}/repos/{OWNER}/{REPO}/issues/{PR_NUMBER}/comments"
     comment = {"body": review}
@@ -101,9 +109,14 @@ def main():
 
         # Append a header for each file to clearly separate diffs.
         aggregated_diff += f"\n### File: {filename}\n{patch}\n"
+        total_diff_size += calculate_diff_size(patch)
 
     if not aggregated_diff.strip():
         print("No applicable diffs found to review.")
+        return
+    
+    if total_diff_size < MIN_DIFF_SIZE:
+        print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Skipping AI review.")
         return
 
     # Create the prompt for the entire PR
@@ -120,6 +133,13 @@ def main():
 
     print("Posting review comment...")
     post_comment(review_response)
+
+    if os.path.exists(output_filename):
+        print("Logging AI PR Review...")
+        with open(output_filename, "r")as f:
+            print(f.read())
+    else:
+        print("No AI PR Review found.")
 
 if __name__ == "__main__":
     main()

@@ -84,7 +84,7 @@ def find_existing_pr_review_comment(comments):
     Returns the comment ID if found, otherwise returns None.
     """
     for comment in comments:
-        if "PR Code Review Analysis" in comment["body"]:
+        if "Detailed Observations:" in comment["body"]:
             return comment["id"]
     return None
 

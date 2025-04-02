@@ -32,6 +32,7 @@ export async function ForgotTemplate(email, resetLink) {
         await Transporter(mailOptions);
         return { success: true, message: EMAIL_SENT_SUCCESSFULLY_MESSAGE };
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error(`Error sending password reset email to ${email}:`, error.message);
+        return { success: false, message: "Failed to send password reset email.", error: error.message };
     }
 }

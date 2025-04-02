@@ -37,8 +37,8 @@ export async function SendOTPInMail(otp, toEmail) {
       htmlContent: emailContent,
     };
 
-    await Transporter(mailOptions);
-    return { success: true, message: EMAIL_SENT_SUCCESSFULLY_MESSAGE };
+   const data = await Transporter(mailOptions);
+    return data;
   } catch (e) {
     return { success: false, error: e.message };
   }

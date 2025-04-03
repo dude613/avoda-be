@@ -10,12 +10,13 @@ import { userContent } from "../../Constants/UserConstants.js";
 
 const {
   EMAIL_NOT_FOUND_ERROR,
-  USER_REGISTER_SUCCESS,
   USER_EMAIL_ALREADY_VERIFIED,
   USER_INVALID_OTP,
   USER_OTP_EXPIRE,
   USER_EMAIL_VERIFIED,
   GENERIC_ERROR_MESSAGE,
+  OTP_NOT_SENT,
+  USER_SEND_OTP
 } = userContent
 
 export async function VerifyOtp(req, res) {
@@ -99,12 +100,24 @@ export async function ResendOtp(req, res) {
       );
     }
 
-    await SendOTPInMail(otp, email);
+    const data = await SendOTPInMail(otp, email);
 
-    return res.status(200).send({
-      success: true,
-      message: USER_REGISTER_SUCCESS,
-    });
+    if(data?.data){
+      return res.status(200).send({
+        success: true,
+        message: USER_SEND_OTP,
+        data: data,
+      });
+    }
+    else{
+      return res.status(500).send({
+        success: false,
+        message: OTP_NOT_SENT,
+        data:data?.error
+      });
+    }
+
+   
   } catch (error) {
     console.log("OTP Resending Error:", error.message);
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });

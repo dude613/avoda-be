@@ -15,7 +15,8 @@ const  {
   ,EMAIL_REGEX,  
   USER_SEND_OTP,
   USER_REGISTER_SUCCESS,
-  USER_EMAIL_ALREADY_EXIST
+  USER_EMAIL_ALREADY_EXIST,
+  OTP_NOT_SENT
 } = userContent;
 
 dotenv.config();
@@ -50,11 +51,23 @@ export async function Register(req, res) {
       { otp, expiresAt: otpExpiration },
       { upsert: true, new: true }
     );
-    await SendOTPInMail(otp, email);
+   const data = await SendOTPInMail(otp, email);
+
+   if(data?.data){
     res.status(201).send({
       success: true,
       message: USER_SEND_OTP,
+      data:data
     });
+   }
+   else{
+    res.status(500).send({
+      success: false,
+      message: OTP_NOT_SENT,
+      data:data?.error
+    });
+   }
+    
   } catch (error) {
     console.log("User Register Error:", error.message);
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
@@ -62,6 +75,7 @@ export async function Register(req, res) {
 }
 
 export const registerWithGoogle = async (req, res) => {
+  console.log("registerWithGoogle");
   const { idToken } = req.body;
   if (!idToken)
     return res
@@ -135,6 +149,7 @@ const validate = (req, res) => {
 
 
 export async function ResetPassword(req, res) {
+  console.log("ResetPassword");
   try {
     const { email, password } = req.body;
     const validationResponse = validate(req, res);

@@ -1,14 +1,14 @@
-// IMPORTANT: Make sure to import `instrument.js` at the top of your file.
-// If you're using ECMAScript Modules (ESM) syntax, use `import "./instrument.js";`
+import dotenv from "dotenv";
+dotenv.config(); // Load .env variables FIRST
+
 import "./instrument.js";
 
 import express from "express";
-import http from "http";
 import * as Sentry from "@sentry/node";
+import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import bodyParser from "body-parser";
-import dotenv from "dotenv";
 import { apiRouter } from "./Routes/Api.js";
 import { ConnectDatabase } from "./Components/ConnectDatabase.js";
 import { join, dirname } from "path";
@@ -25,8 +25,8 @@ const {
   API_BASE_ROUTE
 } = appContent;
 
-dotenv.config();
 const app = express();
+
 const server = http.createServer(app);
 app.use("/files", express.static("files"));
 
@@ -49,15 +49,14 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Sentry error tracking
-Sentry.setupExpressErrorHandler(app);
-
-// Routes
 app.get("/", (req, res) => {
   res.send(SERVER_WORKING_MESSAGE);
 });
 
-// API routes
+app.get("/debug-sentry", function mainHandler(req, res) {
+    throw new Error("My first Sentry error!");
+  });
+
 app.use(API_BASE_ROUTE, apiRouter);
 
 // Connect to database
@@ -68,6 +67,9 @@ app.use(function onError(err, req, res, next) {
     res.statusCode = 500;
     res.end(res.sentry + "\n");
 });
+// Sentry: Add this after all routes, but before any other error-handling middlewares are defined
+Sentry.setupExpressErrorHandler(app);
+//TODO Sentry has a postgres integration
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {
   socket.on(SOCKET_MESSAGE_EVENT, (data) => {
@@ -81,5 +83,7 @@ setupTimerWebSockets(io);
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`${BASE_URL}:${PORT}`);
+    console.log(`${BASE_URL}:${PORT}`);
+    // Send a verification message to Sentry on startup
+    Sentry.captureMessage("Sentry initialized successfully!");
 });

@@ -1,12 +1,15 @@
+import dotenv from "dotenv"; // Import dotenv
+dotenv.config(); // Load .env variables FIRST within instrument.js
+
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
-//import { expressIntegration } from "@sentry/node"; // Correct import for ESM
+import { expressIntegration } from "@sentry/node"; // Keep import uncommented
 
 Sentry.init({
   dsn: process.env.SEN_DSN,
-  debug: true, // Enable debug logging
+  debug: process.env.SEN_DEBUG || false,
   integrations: [
-    //expressIntegration(), // Use the imported integration
+    expressIntegration(),
     nodeProfilingIntegration(),
   ],
   // Tracing

@@ -14,14 +14,16 @@ import { ConnectDatabase } from "./Components/ConnectDatabase.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { appContent } from "./Constants/AppConstants.js";
+import timerRoutes from "./Routes/Timer/index.js";
+import { setupTimerWebSockets } from "./services/webSocketService.js";
 
 const {
-    SERVER_WORKING_MESSAGE,
-    BASE_URL,
-    SOCKET_CONNECTION_EVENT,
-    SOCKET_MESSAGE_EVENT,
-    SOCKET_DISCONNECT_EVENT,
-    API_BASE_ROUTE
+  SERVER_WORKING_MESSAGE,
+  BASE_URL,
+  SOCKET_CONNECTION_EVENT,
+  SOCKET_MESSAGE_EVENT,
+  SOCKET_DISCONNECT_EVENT,
+  API_BASE_ROUTE
 } = appContent;
 
 dotenv.config();
@@ -33,39 +35,55 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 app.use("/uploads", express.static(join(__dirname, "uploads")));
 
+// Initialize Socket.io
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
-    }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+  }
 });
 
+// Setup middleware
 const PORT = process.env.PORT || 8001;
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// Sentry error tracking
 Sentry.setupExpressErrorHandler(app);
 
+// Routes
 app.get("/", (req, res) => {
-    res.send(SERVER_WORKING_MESSAGE);
+  res.send(SERVER_WORKING_MESSAGE);
 });
 
+// API routes
 app.use(API_BASE_ROUTE, apiRouter);
+
+// Timer routes
+app.use("/api/timers", timerRoutes);
+
+// Connect to database
 ConnectDatabase();
 
-
+// Error handling middleware
 app.use(function onError(err, req, res, next) {
     res.statusCode = 500;
     res.end(res.sentry + "\n");
 });
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {
-    socket.on(SOCKET_MESSAGE_EVENT, (data) => {
-        io.emit(SOCKET_MESSAGE_EVENT, data);
-    });
-    socket.on(SOCKET_DISCONNECT_EVENT, () => { });
+  socket.on(SOCKET_MESSAGE_EVENT, (data) => {
+    io.emit(SOCKET_MESSAGE_EVENT, data);
+  });
+  socket.on(SOCKET_DISCONNECT_EVENT, () => { });
 });
 
+// Setup timer-specific WebSocket functionality
+setupTimerWebSockets(io);
+
+// Start server
 server.listen(PORT, () => {
-    console.log(`${BASE_URL}:${PORT}`);
+  console.log(`${BASE_URL}:${PORT}`);
 });

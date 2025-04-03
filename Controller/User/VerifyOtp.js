@@ -15,7 +15,7 @@ const {
   USER_INVALID_OTP,
   USER_OTP_EXPIRE,
   USER_EMAIL_VERIFIED,
-  GENERIC_ERROR_MESSAGE
+  GENERIC_ERROR_MESSAGE,
 } = userContent
 
 export async function VerifyOtp(req, res) {

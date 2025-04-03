@@ -14,7 +14,6 @@ import { ConnectDatabase } from "./Components/ConnectDatabase.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { appContent } from "./Constants/AppConstants.js";
-import timerRoutes from "./Routes/Timer/index.js";
 import { setupTimerWebSockets } from "./services/webSocketService.js";
 
 const {
@@ -60,9 +59,6 @@ app.get("/", (req, res) => {
 
 // API routes
 app.use(API_BASE_ROUTE, apiRouter);
-
-// Timer routes
-app.use("/api/timers", timerRoutes);
 
 // Connect to database
 ConnectDatabase();

@@ -20,5 +20,5 @@ router.get("/active", getActiveTimer)
 // Get user's timer history
 router.get("/", getUserTimers)
 
-export default router;
+export const TimerRoute = router;
 

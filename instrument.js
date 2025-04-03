@@ -1,9 +1,12 @@
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
+//import { expressIntegration } from "@sentry/node"; // Correct import for ESM
 
 Sentry.init({
   dsn: process.env.SEN_DSN,
+  debug: true, // Enable debug logging
   integrations: [
+    //expressIntegration(), // Use the imported integration
     nodeProfilingIntegration(),
   ],
   // Tracing

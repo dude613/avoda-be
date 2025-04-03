@@ -7,7 +7,18 @@ export const startTimer = async (req, res) => {
     const { task, project, client } = req.body
     if (!task) return res.status(400).json({ success: false, message: "Task field is required" });
     const userId = req.user._id
-
+    // Double-check for active timers (race condition protection)
+    const existingActiveTimer = await Timer.findOne({
+      user: userId,
+      isActive: true,
+    })
+    if (existingActiveTimer) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have an active timer.",
+        activeTimer: existingActiveTimer,
+      });
+    }
     // Create a new timer
     const newTimer = new Timer({
       user: userId,

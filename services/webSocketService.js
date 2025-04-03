@@ -19,11 +19,9 @@ export const setupTimerWebSockets = (io) => {
       return next(new Error("Authentication required"));
     }
 
-    console.log("Server-side token:", token); // Added console log
-
     try {
       // Verify JWT token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
       socket.userId = decoded.userId;
       next();
     } catch (error) {

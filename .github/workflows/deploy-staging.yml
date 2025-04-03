@@ -16,7 +16,9 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/avoda-be/
-            git pull origin staging
-            /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
-            /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart 0
+            bash -c '
+              cd /home/ubuntu/avoda-be/
+              git pull origin staging
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart avoda-be-staging
+            '

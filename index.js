@@ -51,23 +51,11 @@ app.get("/", (req, res) => {
 app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
   });
-  
-app.get("/ping", (req, res) => {
-    res.send("NOT_DOWN");
-});
 
 app.use(API_BASE_ROUTE, apiRouter);
 ConnectDatabase();
 
-// Your custom error handler must be defined before the Sentry error handler
-app.use(function onError(err, req, res, next) {
-    // The error id is attached to `res.sentry` to be returned
-    // and optionally displayed to the user for support.
-    res.statusCode = 500;
-    res.end(res.sentry + "\n");
-});
-
-// Sentry: The error handler must be before any other error middleware and after all controllers
+// Sentry: Add this after all routes, but before any other error-handling middlewares are defined
 Sentry.setupExpressErrorHandler(app);
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {

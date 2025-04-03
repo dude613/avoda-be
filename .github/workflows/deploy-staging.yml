@@ -18,5 +18,5 @@ jobs:
           script: |
             cd /home/ubuntu/avoda-be/
             git pull origin staging
-            npm i
-            pm2 restart 0
+            /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
+            /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart 0

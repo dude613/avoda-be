@@ -42,7 +42,7 @@ export async function ForgotPasswordMail(req, res) {
         if (!email) {
             return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
         }
-        if (!EMAIL.test(email)) {
+        if (!EMAIL_REGEX.test(email)) {
             return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
         }
 
@@ -100,7 +100,7 @@ const validate = (req, res) => {
             .status(400)
             .send({ success: false, error: EMAIL_REQUIRED_ERROR });
     }
-    if (!EMAIL.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
         return res
             .status(400)
             .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -116,7 +116,7 @@ export async function SetNewPassword(req, res) {
         if (!email) {
             return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
         }
-        if (!EMAIL.test(email)) {
+        if (!EMAIL_REGEX.test(email)) {
             return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
         }
 

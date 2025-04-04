@@ -9,7 +9,7 @@ export const userContent = {
         USER_EMAIL_ALREADY_EXIST : "This email is already registered. Please use a different email!",
         USER_EMAIL_ALREADY_VERIFIED :  "This email already verified!",
         USER_INVALID_OTP : "Invalid OTP please check and try again.",
-    OTP_NOT_SENT : "Failed to send OTP"
+        OTP_NOT_SENT : "Failed to send OTP"
     },
     success:{
         USER_EMAIL_VERIFIED : "Email verified successfully!",

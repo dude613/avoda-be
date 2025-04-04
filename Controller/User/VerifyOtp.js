@@ -17,8 +17,11 @@ const {
     GENERIC_ERROR_MESSAGE,
     OTP_NOT_SENT
   },
+  messages: {
+    USER_SEND_OTP,
+  },
   success: {
-    USER_EMAIL_VERIFIED
+    USER_EMAIL_VERIFIED,
   }
 } = constants;
 

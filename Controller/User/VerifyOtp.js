@@ -17,11 +17,13 @@ const {
     USER_EMAIL_ALREADY_VERIFIED,
     USER_INVALID_OTP,
     GENERIC_ERROR_MESSAGE,
-    TOO_MANY_REQUESTS_ERROR
+    TOO_MANY_REQUESTS_ERROR,
+    OTP_NOT_SENT
   },
   success: {
     USER_EMAIL_VERIFIED,
-    USER_REGISTER_SUCCESS
+    USER_REGISTER_SUCCESS,
+    USER_SEND_OTP
   },
   messages: {
     USER_OTP_EXPIRE
@@ -174,11 +176,22 @@ export async function ResendOtp(req, res) {
       createdAt: new Date()
     });
 
-    await SendOTPInMail(otp, email);
+    const sendOTP = await SendOTPInMail(otp, email);
+    
+    if (!sendOTP || sendOTP.error) {
+      return res.status(400).send({
+        success: false,
+        error: OTP_NOT_SENT
+      });
+    }
 
     return res.status(200).send({
       success: true,
-      message: USER_REGISTER_SUCCESS,
+      message: USER_SEND_OTP,
+      data: {
+        email: email,
+        otpId: sendOTP.data?.id
+      }
     });
   } catch (error) {
     console.error("OTP Resending Error:", {

@@ -4,8 +4,10 @@ dotenv.config();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export const mailerContent = {
-    IGNORE_RESET_EMAIL_MESSAGE: "If you did not make this request, you can ignore this email.",
-    IGNORE_EMAIL_MESSAGE: "If you didn't request this, please ignore this email.",
+    messages: {
+        IGNORE_RESET_EMAIL_MESSAGE: "If you did not make this request, you can ignore this email.",
+        IGNORE_EMAIL_MESSAGE: "If you didn't request this, please ignore this email.",
+    },
 
     otp: {
         OTP_MESSAGE: "Your OTP code is: ",

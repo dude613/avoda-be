@@ -7,7 +7,7 @@ import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 Sentry.init({
   dsn: process.env.SEN_DSN,
-  debug: process.env.SEN_DEBUG || true,
+  debug: process.env.SEN_DEBUG === true,
   integrations: [
     //expressIntegration(),
     nodeProfilingIntegration(),

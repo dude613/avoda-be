@@ -6,18 +6,22 @@ import {
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import UserSchema from "../../Model/UserSchema.js";
 import crypto from "crypto";
-import { userContent } from "../../Constants/UserConstants.js";
+import * as constants from "../../Constants/UserConstants.js";
 
 const {
-  EMAIL_NOT_FOUND_ERROR,
-  USER_EMAIL_ALREADY_VERIFIED,
-  USER_INVALID_OTP,
-  USER_OTP_EXPIRE,
-  USER_EMAIL_VERIFIED,
-  GENERIC_ERROR_MESSAGE,
-  OTP_NOT_SENT,
-  USER_SEND_OTP
-} = userContent
+  errors:{
+    EMAIL_NOT_FOUND_ERROR,
+    USER_EMAIL_ALREADY_VERIFIED,
+    USER_INVALID_OTP,
+    USER_OTP_EXPIRE,
+    GENERIC_ERROR_MESSAGE,
+    OTP_NOT_SENT
+  },
+  success:{
+    USER_EMAIL_VERIFIED
+  }
+ } = constants;
+
 
 export async function VerifyOtp(req, res) {
   try {

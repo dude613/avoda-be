@@ -120,7 +120,7 @@ export const loginWithGoogle = async (req, res) => {
     console.error("Error during Login:", error);
     return res
       .status(500)
-      .send({ success: false, ERROR: GENERIC_ERROR_MESSAGE });
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 };
 

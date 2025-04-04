@@ -3,27 +3,35 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate.js";
-import {
-    EMAIL_NOT_FOUND_ERROR,
-    EMAIL_REQUIRED_ERROR,
-    INVALID_EMAIL_FORMAT_ERROR,
-    PASSWORD_REQUIRED_ERROR,
-    PASSWORD_COMPLEXITY_ERROR,
-    GENERIC_ERROR_MESSAGE,
-    PASSWORD_RESET_EMAIL_SENT,
-    PASSWORD_UPDATED_SUCCESS,
-    EMAIL_REGEX,
-    PASSWORD_REGEX
-} from "../../Constants/UserConstants.js";
-import { RESET_LINK_BASE } from "../../Constants/MailerConstants.js";
-
-
+import * as constants from "../../Constants/UserConstants.js";
+import { mailerContent } from "../../Constants/MailerConstants.js";
 dotenv.config();
+
+const {
+    errors: {
+        EMAIL_NOT_FOUND_ERROR,
+        INVALID_EMAIL_FORMAT_ERROR,
+        PASSWORD_REQUIRED_ERROR,
+        PASSWORD_COMPLEXITY_ERROR,
+        GENERIC_ERROR_MESSAGE
+    },
+    success: {
+        PASSWORD_UPDATED_SUCCESS,
+    },
+    messages: {
+        PASSWORD_RESET_EMAIL_SENT
+    },
+    validations: {
+        EMAIL,
+        PASSWORD
+    }
+} = constants;
+
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
 const client = new OAuth2Client(CLIENT_ID);
 const FRONTEND_URL = process.env.FRONTEND_URL;
-
+const { RESET_LINK_BASE } = mailerContent;
 
 export async function ForgotPasswordMail(req, res) {
     try {
@@ -68,14 +76,10 @@ export async function ForgotPasswordMail(req, res) {
 const validate = (req, res) => {
     const { email } = req.body;
     if (!email) {
-        return res
-            .status(400)
-            .send({ success: false, error: EMAIL_REQUIRED_ERROR });
+        return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
     }
-    if (!EMAIL_REGEX.test(email)) {
-        return res
-            .status(400)
-            .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+    if (!EMAIL.test(email)) {
+        return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
     }
     return true;
 };
@@ -83,7 +87,6 @@ const validate = (req, res) => {
 export async function SetNewPassword(req, res) {
     try {
         const { email, password } = req.body;
-        const passwordRegex = /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/;
 
         const validationResponse = validate(req, res);
         if (validationResponse !== true) {
@@ -93,7 +96,7 @@ export async function SetNewPassword(req, res) {
         if (!password) {
             return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
         }
-        if (!PASSWORD_REGEX.test(password)) {
+        if (!PASSWORD.test(password)) {
             return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
         }
 

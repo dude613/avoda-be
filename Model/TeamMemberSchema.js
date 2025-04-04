@@ -1,6 +1,9 @@
 import mongoose, { Schema } from "mongoose";
 
 const teamMemberSchema = new Schema({
+    name: {
+        type: String
+    },
     email: {
         type: String,
         required: true,
@@ -13,19 +16,24 @@ const teamMemberSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ["pending", "join"],
+        enum: ["pending", "active"],
         default: "pending"
+    },
+    userDeleteStatus : {
+        type: String,
+        enum : ["active","archive"],
+        default : "active"
     },
     organization: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Organization',
         required: true
     },
-    resetToken: {  
+    resetToken: {
         type: String,
         required: false
     },
-    resetTokenExpiry: {  
+    resetTokenExpiry: {
         type: Date,
         required: false
     }

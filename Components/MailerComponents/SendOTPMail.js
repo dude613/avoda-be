@@ -1,7 +1,9 @@
-import nodemailer from "nodemailer";
-import { transporter } from "./Transporter.js";
+import { Transporter } from "./Transporter.js";
 import dotenv from "dotenv";
-import {
+import { mailerContent } from "../../Constants/MailerConstants.js";
+dotenv.config();
+
+const {
   EMAIL_VERIFICATION_HEADING,
   OTP_MESSAGE,
   OTP_EXPIRATION_PREFIX,
@@ -9,9 +11,10 @@ import {
   VERIFY_EMAIL_SUBJECT,
   IGNORE_EMAIL_MESSAGE,
   VERIFY_EMAIL_BUTTON_TEXT,
-  VERIFICATION_LINK_BASE
-} from "../../Constants/MailerConstants.js";
-dotenv.config();
+  VERIFICATION_LINK_BASE,
+  EMAIL_SENT_SUCCESSFULLY_MESSAGE
+} = mailerContent;
+
 
 export async function SendOTPInMail(otp, toEmail) {
   try {
@@ -29,14 +32,13 @@ export async function SendOTPInMail(otp, toEmail) {
         `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
       to: toEmail,
       subject: VERIFY_EMAIL_SUBJECT,
-      html: emailContent,
+      htmlContent: emailContent,
     };
 
-    await transporter.sendMail(mailOptions);
-    return { success: true };
+   const data = await Transporter(mailOptions);
+    return data;
   } catch (e) {
     return { success: false, error: e.message };
   }

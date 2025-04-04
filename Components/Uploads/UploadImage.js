@@ -16,7 +16,7 @@ const ALLOWED_MIME_TYPES = [
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const filesDirectory = path.join(__dirname, '../uploads');
+const filesDirectory = path.join(__dirname, '../../uploads');
 
 if (!fs.existsSync(filesDirectory)) {
     fs.mkdirSync(filesDirectory, { recursive: true });
@@ -48,7 +48,7 @@ const upload = multer({
     fileFilter: fileFilter,
     limits: {
         fileSize: 20 * 1024 * 1024,
-    },
+    },  
 });
 
 const uploadImages = upload.fields([

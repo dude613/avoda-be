@@ -26,6 +26,29 @@ export async function CreateOrganization(req, res) {
     }
 }
 
+export async function SkipOrganization(req, res) {
+    try {
+        const { OrgId } = req.body;
+
+        if (!OrgId) {
+            return res.status(404).send({ success: false, error: "Organization Id is required!" });
+        }
+
+        const org = await Organization.findById(OrgId);
+        if (!org) {
+            return res.status(404).send({ success: false, error: "Organization not found!" });
+        }
+
+        org.onboardingSkipped = true;
+        await org.save();
+
+        return res.status(200).send({ success: true, message: "Organization skipped successfully!" });
+    } catch (error) {
+        console.log("Error message skipping organization:", error.message);
+        return res.status(500).send({ error: "Internal server error. Please try again!" });
+    }
+}
+
 export async function UpdateOrganization(req, res) {
     try {
         const { userId, OrgId, name, industry, size } = req.body;
@@ -69,7 +92,6 @@ export async function GetOrganization(req, res) {
         console.log(error.message, 'error message get organization list');
     }
 }
-
 
 const validate = async (req, res) => {
     try {

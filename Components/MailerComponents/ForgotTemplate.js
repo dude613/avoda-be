@@ -1,15 +1,16 @@
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import { transporter } from "./Transporter.js";
-import {
+import { mailerContent } from "../../Constants/MailerConstants.js";
+import { Transporter } from "./Transporter.js";
+dotenv.config();
+
+const {
     PASSWORD_RESET_REQUEST_HEADING,
     RESET_PASSWORD_LINK_TEXT,
     RESET_PASSWORD_BUTTON_TEXT,
     IGNORE_RESET_EMAIL_MESSAGE,
     RESET_YOUR_PASSWORD_SUBJECT,
     EMAIL_SENT_SUCCESSFULLY_MESSAGE
-} from "../../Constants/MailerConstants.js";
-dotenv.config();
+} = mailerContent;
 
 export async function ForgotTemplate(email, resetLink) {
     try {
@@ -23,15 +24,15 @@ export async function ForgotTemplate(email, resetLink) {
         `;
 
         const mailOptions = {
-            from: process.env.EMAIL_USER,
             to: email,
-            subject: RESET_YOUR_PASSWORD_SUBJECT,
-            html: emailContent,
+            subject: `${RESET_YOUR_PASSWORD_SUBJECT}`,
+            htmlContent: emailContent,
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        await Transporter(mailOptions);
         return { success: true, message: EMAIL_SENT_SUCCESSFULLY_MESSAGE };
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error(`Error sending password reset email to ${email}:`, error.message);
+        return { success: false, message: "Failed to send password reset email.", error: error.message };
     }
 }

@@ -18,9 +18,13 @@ const organizationSchema = new Schema({
         type: String,
         enum: ['startup (1-10 employees)', 'small (11-50 employees)', 'medium (51-200 employees)', 'large (201-500 employees)'],
     },
-    teamMembers: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'TeamMember' 
+    onboardingSkipped: {
+        type: Boolean,
+        default: false
+    },
+    teamMembers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TeamMember'
     }]
 }, { versionKey: false });
 

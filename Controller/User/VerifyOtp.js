@@ -2,10 +2,29 @@ import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js"
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../../Components/VerfiyAccessToken.js";
+} from "../../Components/VerifyAccessToken.js";
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import UserSchema from "../../Model/UserSchema.js";
 import crypto from "crypto";
+import * as constants from "../../Constants/UserConstants.js";
+
+const {
+  errors: {
+    EMAIL_NOT_FOUND_ERROR,
+    USER_EMAIL_ALREADY_VERIFIED,
+    USER_INVALID_OTP,
+    USER_OTP_EXPIRE,
+    GENERIC_ERROR_MESSAGE,
+    OTP_NOT_SENT
+  },
+  messages: {
+    USER_SEND_OTP,
+  },
+  success: {
+    USER_EMAIL_VERIFIED,
+  }
+} = constants;
+
 
 export async function VerifyOtp(req, res) {
   try {
@@ -14,24 +33,25 @@ export async function VerifyOtp(req, res) {
     if (!user) {
       return res
         .status(400)
-        .send({ success: false, message: "This email doesn't exist in database. Please use a different email!" });
+        .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
+
     if (user.verified === "true") {
       return res.status(404).send({
         success: false,
-        error: "This email already verified!",
+        error: USER_EMAIL_ALREADY_VERIFIED,
       });
     }
     const otpRecord = await UserOtpSchema.findOne({ userId: user._id });
 
     if (!otpRecord || otpRecord.otp !== otp) {
-      return res.status(400).send({ success: false, message: "Invalid OTP please check and try again." });
+      return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
 
     if (otpRecord.expiresAt < new Date()) {
       return res.status(400).send({
         success: false,
-        message: "OTP expired. Please request a new one.",
+        error: USER_OTP_EXPIRE,
       });
     }
 
@@ -41,15 +61,16 @@ export async function VerifyOtp(req, res) {
     user.verified = true;
     user.refreshToken = refreshToken;
     await user.save();
+
     return res.status(200).send({
       success: true,
-      message: "Email verified successfully!",
+      message: USER_EMAIL_VERIFIED,
       user,
       accessToken,
     });
   } catch (error) {
     console.log("OTP Verification Error:", error.message);
-    return res.status(500).send({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
 
@@ -61,13 +82,13 @@ export async function ResendOtp(req, res) {
     if (!user) {
       return res
         .status(400)
-        .send({ success: false, message: "User not found." });
+        .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
     if (user.verified === "true") {
       return res.status(201).send({
         success: true,
-        message: "Email already verified!",
+        message: USER_EMAIL_VERIFIED,
       });
     }
 
@@ -86,14 +107,26 @@ export async function ResendOtp(req, res) {
       );
     }
 
-    await SendOTPInMail(otp, email);
+    const data = await SendOTPInMail(otp, email);
 
-    return res.status(200).send({
-      success: true,
-      message: "User has been registered successfully!",
-    });
+    if (data?.data) {
+      return res.status(200).send({
+        success: true,
+        message: USER_SEND_OTP,
+        data: data,
+      });
+    }
+    else {
+      return res.status(500).send({
+        success: false,
+        message: OTP_NOT_SENT,
+        data: data?.error
+      });
+    }
+
+
   } catch (error) {
     console.log("OTP Resending Error:", error.message);
-    return res.status(500).send({ success: false, error: error.message });
+    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }

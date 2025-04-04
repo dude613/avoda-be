@@ -1,0 +1,42 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - staging  # or your deployment branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build the project
+        run: npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Add your server to known_hosts to prevent SSH authenticity prompt
+          ssh-keyscan -H ec2-54-175-59-135.compute-1.amazonaws.com >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@ec2-54-175-59-135.compute-1.amazonaws.com << 'EOF'
+            cd /home/ubuntu/avoda-be  # adjust the path to your app directory on EC2
+            git pull origin main
+            npm install
+            pm2 restart avoda-be || pm2 start index.js --name avoda-be
+          EOF

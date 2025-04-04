@@ -2,25 +2,36 @@ import UserSchema from "../../Model/UserSchema.js";
 import { userContent } from "../../Constants/UserConstants.js";
 import dotenv from "dotenv";
 dotenv.config();
+
 const {
-    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR,
-    INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR,
-    EMAIL_REGEX,
-    USER_SEND_OTP,
-    USER_REGISTER_SUCCESS,
-    USER_EMAIL_ALREADY_EXIST,
-    USER_EMAIL_ALREADY_VERIFIED,
-    USER_INVALID_OTP,
-    USER_OTP_EXPIRE,
-    USER_EMAIL_VERIFIED,
-    USER_PROFILE_DATA_SUCCESS,
-    GENERIC_ERROR_MESSAGE,
-    USER_NOT_FOUND,
-    INVALID_USER_ID,
-    INVALID_FILE_TYPE,
-    FILE_SIZE_EXCEEDED,
-    NO_FILE_UPLOADED
+    errors: {
+        EMAIL_NOT_FOUND_ERROR,
+        EMAIL_REQUIRED_ERROR,
+        INVALID_EMAIL_FORMAT_ERROR,
+        GENERIC_ERROR_MESSAGE,
+        USER_EMAIL_ALREADY_EXIST,
+        USER_EMAIL_ALREADY_VERIFIED,
+        USER_INVALID_OTP,
+        USER_NOT_FOUND,
+        INVALID_USER_ID,
+        INVALID_FILE_TYPE,
+        FILE_SIZE_EXCEEDED,
+        NO_FILE_UPLOADED
+    },
+    success: {
+        USER_EMAIL_VERIFIED,
+        USER_REGISTER_SUCCESS,
+        USER_PROFILE_DATA_SUCCESS
+    },
+    messages: {
+        USER_OTP_EXPIRE,
+        USER_SEND_OTP
+    },
+    validations: {
+        EMAIL: EMAIL_REGEX
+    }
 } = userContent;
+
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];

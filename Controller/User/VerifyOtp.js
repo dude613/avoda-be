@@ -10,19 +10,25 @@ import { userContent } from "../../Constants/UserConstants.js";
 import rateLimit from "express-rate-limit";
 
 const {
-  EMAIL_NOT_FOUND_ERROR,
-  USER_REGISTER_SUCCESS,
-  USER_EMAIL_ALREADY_VERIFIED,
-  USER_INVALID_OTP,
-  USER_OTP_EXPIRE,
-  USER_EMAIL_VERIFIED,
-  GENERIC_ERROR_MESSAGE,
-  EMAIL_REQUIRED_ERROR,
-  INVALID_EMAIL_FORMAT_ERROR,
-  OTP_REQUIRED_ERROR,
-  INVALID_OTP_FORMAT_ERROR,
-  TOO_MANY_REQUESTS_ERROR,
-  EMAIL_REGEX
+  errors: {
+    EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    USER_EMAIL_ALREADY_VERIFIED,
+    USER_INVALID_OTP,
+    GENERIC_ERROR_MESSAGE,
+    TOO_MANY_REQUESTS_ERROR
+  },
+  success: {
+    USER_EMAIL_VERIFIED,
+    USER_REGISTER_SUCCESS
+  },
+  messages: {
+    USER_OTP_EXPIRE
+  },
+  validations: {
+    EMAIL: EMAIL_REGEX
+  }
 } = userContent;
 
 // Rate limiting configuration

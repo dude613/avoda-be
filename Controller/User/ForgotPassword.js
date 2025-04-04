@@ -7,16 +7,26 @@ import { userContent } from "../../Constants/UserConstants.js";
 import { mailerContent } from "../../Constants/MailerConstants.js";
 dotenv.config();
 
-const { EMAIL_NOT_FOUND_ERROR,
-    EMAIL_REQUIRED_ERROR,
-    INVALID_EMAIL_FORMAT_ERROR,
-    PASSWORD_REQUIRED_ERROR,
-    PASSWORD_COMPLEXITY_ERROR,
-    GENERIC_ERROR_MESSAGE,
-    PASSWORD_RESET_EMAIL_SENT,
-    PASSWORD_UPDATED_SUCCESS,
-    EMAIL_REGEX,
-    PASSWORD_REGEX } = userContent;
+const { 
+    errors: {
+        EMAIL_NOT_FOUND_ERROR,
+        EMAIL_REQUIRED_ERROR,
+        INVALID_EMAIL_FORMAT_ERROR,
+        GENERIC_ERROR_MESSAGE
+    },
+    success: {
+        PASSWORD_UPDATED_SUCCESS
+    },
+    messages: {
+        PASSWORD_REQUIRED_ERROR,
+        PASSWORD_COMPLEXITY_ERROR,
+        PASSWORD_RESET_EMAIL_SENT
+    },
+    validations: {
+        EMAIL: EMAIL_REGEX,
+        PASSWORD_REGEX
+    }
+} = userContent;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -32,7 +42,7 @@ export async function ForgotPasswordMail(req, res) {
         if (!email) {
             return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
         }
-        if (!EMAIL_REGEX.test(email)) {
+        if (!EMAIL.test(email)) {
             return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
         }
 
@@ -90,7 +100,7 @@ const validate = (req, res) => {
             .status(400)
             .send({ success: false, error: EMAIL_REQUIRED_ERROR });
     }
-    if (!EMAIL_REGEX.test(email)) {
+    if (!EMAIL.test(email)) {
         return res
             .status(400)
             .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -106,7 +116,7 @@ export async function SetNewPassword(req, res) {
         if (!email) {
             return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
         }
-        if (!EMAIL_REGEX.test(email)) {
+        if (!EMAIL.test(email)) {
             return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
         }
 

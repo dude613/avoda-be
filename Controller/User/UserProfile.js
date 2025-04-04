@@ -12,7 +12,7 @@ const {
         INVALID_USER_ID,
         INVALID_FILE_TYPE,
         FILE_SIZE_EXCEEDED,
-        NO_FILE_UPLOADED
+        NO_FILE_UPLOADED,
     },
     success: {
 

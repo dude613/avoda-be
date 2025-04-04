@@ -13,7 +13,8 @@ export const userContent = {
         INVALID_USER_ID : "Invalid user ID",
         INVALID_FILE_TYPE : "Invalid file type. Only JPEG, PNG, and GIF images are allowed",
         FILE_SIZE_EXCEEDED : "File size exceeds the maximum limit of 5MB",
-        NO_FILE_UPLOADED : "No file was uploaded"
+        NO_FILE_UPLOADED : "No file was uploaded",
+        GOOGLE_LOGIN_REQUIRED : "This email is registered with Google. Please use Google login instead."
     },
     success:{
         USER_EMAIL_VERIFIED : "Email verified successfully!",

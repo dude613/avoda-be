@@ -11,5 +11,5 @@ OrgRoute.get("/organization-list/:userId", verifyAccessToken, GetOrganization)
 OrgRoute.post("/add-teammember", verifyAccessToken, AddTeamMember)
 OrgRoute.get("/list-teammember/:userId", verifyAccessToken, GetAllTeamMember);
 OrgRoute.post("/user-archived", verifyAccessToken, DeleteUser)
-OrgRoute.put("/edit-teammeber", verifyAccessToken, EditTeamMember);
+OrgRoute.put("/edit-teammember", verifyAccessToken, EditTeamMember);
 

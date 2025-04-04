@@ -39,4 +39,3 @@ jobs:
             git pull origin main
             npm install
             pm2 restart avoda-be || pm2 start index.js --name avoda-be
-          EOF

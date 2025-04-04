@@ -6,34 +6,90 @@ import {
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import UserSchema from "../../Model/UserSchema.js";
 import crypto from "crypto";
-import * as constants from "../../Constants/UserConstants.js";
+import { userContent } from "../../Constants/UserConstants.js";
+import rateLimit from "express-rate-limit";
 
 const {
   errors: {
     EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
     USER_EMAIL_ALREADY_VERIFIED,
     USER_INVALID_OTP,
-    USER_OTP_EXPIRE,
     GENERIC_ERROR_MESSAGE,
+    TOO_MANY_REQUESTS_ERROR,
     OTP_NOT_SENT
-  },
-  messages: {
-    USER_SEND_OTP,
   },
   success: {
     USER_EMAIL_VERIFIED,
+    USER_REGISTER_SUCCESS,
+    USER_SEND_OTP
+  },
+  messages: {
+    USER_OTP_EXPIRE
+  },
+  validations: {
+    EMAIL: EMAIL_REGEX
   }
-} = constants;
+} = userContent;
 
+// Rate limiting configuration
+const verifyOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per windowMs
+  message: { success: false, error: TOO_MANY_REQUESTS_ERROR }
+});
+
+const resendOtpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 attempts per windowMs
+  message: { success: false, error: TOO_MANY_REQUESTS_ERROR }
+});
+
+// Input validation middleware
+const validateOtpInput = (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email) {
+    return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+  }
+
+  if (!otp) {
+    return res.status(400).send({ success: false, error: OTP_REQUIRED_ERROR });
+  }
+
+  if (!/^\d{6}$/.test(otp)) {
+    return res.status(400).send({ success: false, error: INVALID_OTP_FORMAT_ERROR });
+  }
+
+  next();
+};
+
+const validateEmailInput = (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    return res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+  }
+
+  next();
+};
 
 export async function VerifyOtp(req, res) {
   try {
     const { email, otp } = req.body;
     const user = await UserSchema.findOne({ email });
+    
     if (!user) {
-      return res
-        .status(400)
-        .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
+      return res.status(400).send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
     if (user.verified === "true") {
@@ -42,6 +98,7 @@ export async function VerifyOtp(req, res) {
         error: USER_EMAIL_ALREADY_VERIFIED,
       });
     }
+
     const otpRecord = await UserOtpSchema.findOne({ userId: user._id });
 
     if (!otpRecord || otpRecord.otp !== otp) {
@@ -49,27 +106,43 @@ export async function VerifyOtp(req, res) {
     }
 
     if (otpRecord.expiresAt < new Date()) {
+      await UserOtpSchema.deleteOne({ userId: user._id });
       return res.status(400).send({
         success: false,
         error: USER_OTP_EXPIRE,
       });
     }
 
+    // Delete the used OTP
     await UserOtpSchema.deleteOne({ userId: user._id });
+    
+    // Generate new tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+    
+    // Update user verification status and tokens
     user.verified = true;
     user.refreshToken = refreshToken;
+    user.lastLoginAt = new Date();
     await user.save();
 
     return res.status(200).send({
       success: true,
       message: USER_EMAIL_VERIFIED,
-      user,
+      user: {
+        id: user._id,
+        email: user.email,
+        verified: user.verified,
+        role:user.role
+      },
       accessToken,
     });
   } catch (error) {
-    console.log("OTP Verification Error:", error.message);
+    console.error("OTP Verification Error:", {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
@@ -80,9 +153,7 @@ export async function ResendOtp(req, res) {
     const user = await UserSchema.findOne({ email });
 
     if (!user) {
-      return res
-        .status(400)
-        .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
+      return res.status(400).send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
     if (user.verified === "true") {
@@ -92,41 +163,45 @@ export async function ResendOtp(req, res) {
       });
     }
 
-    const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    let otp;
+    // Delete any existing OTPs for this user
+    await UserOtpSchema.deleteMany({ userId: user._id });
 
-    const existingOtp = await UserOtpSchema.findOne({ userId: user._id });
-    if (existingOtp && existingOtp.expiresAt > new Date()) {
-      otp = existingOtp.otp;
-    } else {
-      otp = crypto.randomInt(100000, 999999).toString();
-      await UserOtpSchema.findOneAndUpdate(
-        { userId: user._id },
-        { otp, expiresAt: otpExpiration },
-        { upsert: true, new: true }
-      );
-    }
+    const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    const otp = crypto.randomInt(100000, 999999).toString();
 
-    const data = await SendOTPInMail(otp, email);
+    await UserOtpSchema.create({
+      userId: user._id,
+      otp,
+      expiresAt: otpExpiration,
+      createdAt: new Date()
+    });
 
-    if (data?.data) {
-      return res.status(200).send({
-        success: true,
-        message: USER_SEND_OTP,
-        data: data,
-      });
-    }
-    else {
-      return res.status(500).send({
+    const sendOTP = await SendOTPInMail(otp, email);
+    
+    if (!sendOTP || sendOTP.error) {
+      return res.status(400).send({
         success: false,
-        message: OTP_NOT_SENT,
-        data: data?.error
+        error: OTP_NOT_SENT
       });
     }
 
-
+    return res.status(200).send({
+      success: true,
+      message: USER_SEND_OTP,
+      data: {
+        email: email,
+        otpId: sendOTP.data?.id
+      }
+    });
   } catch (error) {
-    console.log("OTP Resending Error:", error.message);
+    console.error("OTP Resending Error:", {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
+
+// Export the rate limiters and validators
+export { verifyOtpLimiter, resendOtpLimiter, validateOtpInput, validateEmailInput };

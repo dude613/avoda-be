@@ -4,19 +4,22 @@ import { mailerContent } from "../../Constants/MailerConstants.js";
 dotenv.config();
 
 const {
-  EMAIL_VERIFICATION_HEADING,
-  OTP_MESSAGE,
-  OTP_EXPIRATION_PREFIX,
-  OTP_EXPIRATION_SUFFIX,
-  VERIFY_EMAIL_SUBJECT,
-  IGNORE_EMAIL_MESSAGE,
-  VERIFY_EMAIL_BUTTON_TEXT,
-  VERIFICATION_LINK_BASE,
-  EMAIL_SENT_SUCCESSFULLY_MESSAGE
+  otp: { OTP_MESSAGE, OTP_EXPIRATION_PREFIX, OTP_EXPIRATION_SUFFIX },
+  messages: {
+    IGNORE_EMAIL_MESSAGE
+  },
+  verification: {
+    EMAIL_VERIFICATION_HEADING,
+    VERIFY_EMAIL_SUBJECT,
+    VERIFY_EMAIL_BUTTON_TEXT,
+    VERIFICATION_LINK_BASE,
+    EMAIL_SENT_SUCCESSFULLY_MESSAGE
+  },
 } = mailerContent;
 
 
 export async function SendOTPInMail(otp, toEmail) {
+  console.log("VERIFY_EMAIL_SUBJECT>>>>>",VERIFY_EMAIL_SUBJECT);
   try {
     const verificationLink = `${VERIFICATION_LINK_BASE}?email=${encodeURIComponent(
       toEmail

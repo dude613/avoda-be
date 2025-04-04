@@ -1,15 +1,18 @@
-name: Deploy to Staging (Pull and Restart)
+name: Deploy to Server (Staging/Production)
 
 on:
   push:
     branches:
-      - staging
+      - main  # Production
+      - staging # Staging
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'  # Only run for staging or main
     steps:
-      - name: Deploy to staging server
+      - name: Deploy to Staging Server
+        if: github.ref == 'refs/heads/staging'
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -21,4 +24,19 @@ jobs:
               git pull origin staging
               /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
               /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart avoda-be-staging
+            '
+
+      - name: Deploy to Production Server
+        if: github.ref == 'refs/heads/main'
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_PRIVATE_KEY }}
+          script: |
+            bash -c '
+              cd /home/ubuntu/avoda-be/
+              git pull origin main
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart avoda-be-production
             '

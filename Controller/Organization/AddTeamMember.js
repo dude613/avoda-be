@@ -21,10 +21,18 @@ export async function AddTeamMember(req, res) {
             if (!org) {
                 return res.status(404).send({ success: false, error: `Organization with ID ${orgId} not found!` });
             }
+
+            // Check organization's team member capacity
+            const currentMemberCount = await TeamMember.countDocuments({ organization: orgId });
+            if (currentMemberCount >= 1000) { // Assuming a reasonable limit
+                return res.status(400).send({ success: false, error: "Organization has reached maximum team member capacity!" });
+            }
+
             const existingTeamMember = await TeamMember.findOne({ email, organization: orgId });
             if (existingTeamMember) {
                 return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
             }
+
             const user = { email, _id: orgId };
             const accessToken = generateAccessToken(user);
             const resetTokenExpiry = new Date();
@@ -42,12 +50,18 @@ export async function AddTeamMember(req, res) {
 
             await newTeamMember.save();
 
-            org.teamMembers.push(newTeamMember._id);
-            await org.save();
+            try {
+                org.teamMembers.push(newTeamMember._id);
+                await org.save();
+            } catch (error) {
+                // If organization update fails, clean up the created team member
+                await TeamMember.findByIdAndDelete(newTeamMember._id);
+                throw new Error("Failed to update organization with new team member");
+            }
 
             const resetLink = `${process.env.FRONTEND_URL}/register/setPassword?email=${encodeURIComponent(
                 newTeamMember.email
-            )}&token=${newTeamMember.resetToken}`;
+            )}&token=${newTeamMember.resetToken}&role=${encodeURIComponent(newTeamMember.role)}`;
             resetLinks.push({
                 orgName: org.name,
                 name: newTeamMember.name,
@@ -59,7 +73,13 @@ export async function AddTeamMember(req, res) {
         }
 
         if (resetLinks.length > 0) {
-            await SendInvitation(resetLinks);
+            try {
+                await SendInvitation(resetLinks);
+            } catch (error) {
+                console.error("Failed to send invitations:", error);
+                // Don't fail the entire operation if email sending fails
+                // Just log the error and continue
+            }
         }
 
         return res.status(200).send({
@@ -69,8 +89,12 @@ export async function AddTeamMember(req, res) {
         });
 
     } catch (error) {
-        console.log("Error adding team members:", error.message);
-        return res.status(500).send({ error: "Internal server error. Please try again!" });
+        console.error("Error adding team members:", error.message);
+        return res.status(500).send({ 
+            success: false,
+            error: "Internal server error. Please try again!",
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 }
 
@@ -78,36 +102,46 @@ const validate = (members) => {
     if (!members || members.length === 0) {
         return { success: false, error: "At least one member is required!" };
     }
+    if (members.length > 50) {
+        return { success: false, error: "Cannot add more than 50 members at once!" };
+    }
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    const nameRegex = /^[A-Za-z ]+$/;
+    const nameRegex = /^[A-Za-z\s'-]+$/;
     const seenEmails = new Set();
 
     for (let i = 0; i < members.length; i++) {
         const { email, role, orgId, name } = members[i];
-        if (!name) {
-            return { success: false, error: `Name is required for member ${i + 1}` }
+        
+        if (!name || name.trim().length === 0) {
+            return { success: false, error: `Name is required for member ${i + 1}` };
+        }
+        if (name.length > 100) {
+            return { success: false, error: `Name cannot exceed 100 characters for member ${i + 1}` };
         }
         if (!nameRegex.test(name)) {
-            return { success: false, error: `Valid name (only letters and spaces) is required for member ${i + 1}!` };
+            return { success: false, error: `Valid name (only letters, spaces, hyphens and apostrophes) is required for member ${i + 1}!` };
         }
 
         if (!email) {
             return { success: false, error: `Email is required for member ${i + 1}!` };
         }
+        if (email.length > 254) {
+            return { success: false, error: `Email cannot exceed 254 characters for member ${i + 1}` };
+        }
         if (!emailRegex.test(email)) {
             return { success: false, error: `Invalid email format for member ${i + 1}!` };
         }
-        if (seenEmails.has(email)) {
+        if (seenEmails.has(email.toLowerCase())) {
             return { success: false, error: `Duplicate email (${email}) found for multiple members!` };
         }
-        seenEmails.add(email);
+        seenEmails.add(email.toLowerCase());
 
         if (!role || !["employee", "manager", "admin"].includes(role.toLowerCase())) {
             return { success: false, error: `Valid role is required (employee, manager, admin) for member ${i + 1}!` };
         }
 
-        if (!orgId) {
-            return { success: false, error: `Organization not found please create organization first` };
+        if (!orgId || !orgId.match(/^[0-9a-fA-F]{24}$/)) {
+            return { success: false, error: `Valid organization ID is required for member ${i + 1}!` };
         }
     }
     return { success: true };

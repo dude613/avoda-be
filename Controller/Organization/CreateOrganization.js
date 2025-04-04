@@ -53,6 +53,10 @@ export async function UpdateOrganization(req, res) {
     try {
         const { userId, OrgId, name, industry, size } = req.body;
 
+        if (!OrgId) {
+            return res.status(404).send({ success: false, error: "Organization ID is required!" });
+        }
+
         const validationResponse = await validate(req, res);
         if (validationResponse !== true) {
             return;
@@ -80,16 +84,17 @@ export async function GetOrganization(req, res) {
     try {
         const { userId } = req.params;
         if (!userId) {
-            return res.status(404).send({ success: false, error: "user Id is required!" });
+            return res.status(404).send({ success: false, error: "User ID is required!" });
         }
 
         const orgList = await Organization.find({ user: userId })
-        if (!orgList) {
-            return res.status(400).send({ success: false, error: "Organization not found!" })
+        if (!orgList || orgList.length === 0) {
+            return res.status(404).send({ success: false, error: "No organizations found for this user!" })
         }
-        res.status(200).send({ success: true, message: "Organization list fetch successfully", data: orgList })
+        return res.status(200).send({ success: true, message: "Organization list fetched successfully", data: orgList })
     } catch (error) {
         console.log(error.message, 'error message get organization list');
+        return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
     }
 }
 

@@ -7,7 +7,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import * as constants from "../../Constants/UserConstants.js";
+import { userContent } from "../../Constants/UserConstants.js";
 import Organization from "../../Model/OrganizationSchema.js";
 
 const {
@@ -15,19 +15,21 @@ const {
     EMAIL_NOT_FOUND_ERROR,
     EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR,
-    PASSWORD_REQUIRED_ERROR,
-    PASSWORD_COMPLEXITY_ERROR,
-    GENERIC_ERROR_MESSAGE,
     PASSWORD_REQUIRED_INCORRECT,
+    GENERIC_ERROR_MESSAGE
   },
   success: {
-    USER_LOGIN_SUCCESS,
+    USER_LOGIN_SUCCESS
+  },
+  messages: {
+    PASSWORD_REQUIRED_ERROR,
+    PASSWORD_COMPLEXITY_ERROR
   },
   validations: {
-    EMAIL,
-    PASSWORD
+    EMAIL: EMAIL_REGEX,
+    PASSWORD_REGEX
   }
-} = constants;
+} = userContent;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -52,36 +54,70 @@ export async function Login(req, res) {
     if (!isMatch) {
       return res.status(400).send({ success: false, error: PASSWORD_REQUIRED_INCORRECT });
     }
-
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+
+    if (!accessToken || !refreshToken) {
+      return res.status(500).send({ 
+        success: false, 
+        error: "Failed to generate authentication tokens" 
+      });
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.refreshToken = refreshToken;
     user.otp = otp;
     user.otpExpiry = otpExpiry;
-    await user.save();
-    let onboardingSkipped = false;
-    const organization = await Organization.findOne({ user: user._id });
-
-    if (organization) {
-      onboardingSkipped = organization.onboardingSkipped;
+    
+    try {
+      await user.save();
+    } catch (saveError) {
+      console.error("Error saving user:", saveError);
+      return res.status(500).send({ 
+        success: false, 
+        error: "Failed to update user session" 
+      });
     }
 
-    res.status(201).send({
+    let onboardingSkipped = false;
+    try {
+      const organization = await Organization.findOne({ user: user._id });
+      if (organization) {
+        onboardingSkipped = organization.onboardingSkipped;
+      }
+    } catch (orgError) {
+      console.error("Error fetching organization:", orgError);
+      // Continue with default onboardingSkipped value
+    }
+
+    res.status(200).send({
       success: true,
       message: USER_LOGIN_SUCCESS,
-      user,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        role:user.role
+        // Only send necessary user data
+      },
       onboardingSkipped,
       accessToken,
     });
 
   } catch (error) {
     console.error("Error during login:", error);
-    res
-      .status(500)
-      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    if (error.name === 'MongoError') {
+      return res.status(503).send({ 
+        success: false, 
+        error: "Database service temporarily unavailable" 
+      });
+    }
+    res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }
 
@@ -95,31 +131,70 @@ export const loginWithGoogle = async (req, res) => {
     client.setCredentials({ access_token: idToken });
     const response = await client.request({ url: AUTH_URL });
     const payload = response.data;
-    if (!payload)
+    
+    if (!payload || !payload.id || !payload.email) {
       return res
         .status(401)
-        .send({ success: false, error: "Invalid ID token" });
+        .send({ success: false, error: "Invalid Google authentication response" });
+    }
+
     const { id: googleId, email, name, picture } = payload;
-    if (!googleId) {
+    
+    if (!googleId || !email) {
       return res
         .status(400)
-        .send({ success: false, error: "Invalid Google ID" });
+        .send({ success: false, error: "Invalid Google authentication data" });
     }
+
     let user = await UserSchema.findOne({ email });
 
     if (user) {
+
       user.googleId = googleId;
-      user.name = name;
-      user.picture = picture;
-      await user.save();
+      user.name = name || user.name;
+      user.picture = picture || user.picture;
+      
+      try {
+        await user.save();
+      } catch (saveError) {
+        console.error("Error saving user:", saveError);
+        return res.status(500).send({ 
+          success: false, 
+          error: "Failed to update user profile" 
+        });
+      }
+
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
+
+      if (!accessToken || !refreshToken) {
+        return res.status(500).send({ 
+          success: false, 
+          error: "Failed to generate authentication tokens" 
+        });
+      }
+
       user.refreshToken = refreshToken;
-      await user.save();
+      try {
+        await user.save();
+      } catch (tokenSaveError) {
+        console.error("Error saving refresh token:", tokenSaveError);
+        return res.status(500).send({ 
+          success: false, 
+          error: "Failed to update user session" 
+        });
+      }
+
       return res.status(200).send({
         success: true,
         message: USER_LOGIN_SUCCESS,
-        user,
+        user: {
+          _id: user._id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          role:user.role
+        },
         accessToken,
       });
     } else {
@@ -129,10 +204,17 @@ export const loginWithGoogle = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error during Login:", error);
-    return res
-      .status(500)
-      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("Error during Google Login:", error);
+    if (error.name === 'MongoError') {
+      return res.status(503).send({ 
+        success: false, 
+        error: "Database service temporarily unavailable" 
+      });
+    }
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 };
 
@@ -143,7 +225,7 @@ const validate = (req, res) => {
       .status(400)
       .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
-  if (!EMAIL.test(email)) {
+  if (!EMAIL_REGEX.test(email)) {
     return res
       .status(400)
       .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -151,7 +233,7 @@ const validate = (req, res) => {
   if (!password) {
     return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
-  if (!PASSWORD.test(password)) {
+  if (!PASSWORD_REGEX.test(password)) {
     return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
   }
   return true;

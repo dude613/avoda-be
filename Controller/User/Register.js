@@ -8,24 +8,31 @@ import {
 import UserSchema from "../../Model/UserSchema.js";
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
-import * as constants from "../../Constants/UserConstants.js";
+import { userContent } from "../../Constants/UserConstants.js";
+import bcrypt from "bcryptjs";
 
 const {
   errors: {
     EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
     INVALID_EMAIL_FORMAT_ERROR,
-    PASSWORD_REQUIRED_ERROR,
     GENERIC_ERROR_MESSAGE,
     USER_EMAIL_ALREADY_EXIST,
-    OTP_NOT_SENT
-  },
-  success: {
-    USER_REGISTER_SUCCESS,
+    USER_EMAIL_ALREADY_VERIFIED
   },
   messages: {
+    PASSWORD_REQUIRED_ERROR,
+    PASSWORD_COMPLEXITY_ERROR,
     USER_SEND_OTP
+  },
+  success: {
+    USER_REGISTER_SUCCESS
+  },
+  validations: {
+    EMAIL: EMAIL_REGEX,
+    PASSWORD_REGEX
   }
-} = constants;
+} = userContent;
 
 dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -34,162 +41,250 @@ const client = new OAuth2Client(CLIENT_ID);
 
 export async function Register(req, res) {
   try {
-    const { userName, email, password } = req.body;
+    const { email, password, role } = req.body;
+    let { userName } = req.body;
+    
+    // If userName is not provided, create it from email
+    if (!userName || userName.trim().length === 0) {
+      userName = email.split('@')[0];
+      req.body.userName = userName;
+    }
+
     const validationResponse = validate(req, res);
     if (validationResponse !== true) {
       return;
     }
+
     let user = await UserSchema.findOne({ email });
     if (user) {
       if (user.verified === "true") {
         return res.status(400).send({
           success: false,
-          error: EMAIL_NOT_FOUND_ERROR,
+          error: USER_EMAIL_ALREADY_EXIST,
         });
       }
-    } else {
-      user = new UserSchema({ userName, email, password });
-      await user.save();
+      return res.status(400).send({
+        success: false,
+        error: USER_EMAIL_ALREADY_VERIFIED,
+      });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user = new UserSchema({ 
+      userName, 
+      email, 
+      password: hashedPassword,
+      role,
+      verified: false 
+    });
+    await user.save();
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
+    
     await UserOtpSchema.findOneAndUpdate(
       { userId: user._id },
       { otp, expiresAt: otpExpiration },
       { upsert: true, new: true }
     );
-    const data = await SendOTPInMail(otp, email);
 
-    if (data?.data) {
-      res.status(201).send({
-        success: true,
-        message: USER_SEND_OTP,
-        data: data
-      });
-    }
-    else {
-      res.status(500).send({
-        success: false,
-        message: OTP_NOT_SENT,
-        data: data?.error
-      });
-    }
-
+    await SendOTPInMail(otp, email);
+    
+    return res.status(201).send({
+      success: true,
+      message: USER_SEND_OTP,
+    });
   } catch (error) {
-    console.log("User Register Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("User Register Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }
 
 export const registerWithGoogle = async (req, res) => {
-  console.log("registerWithGoogle");
-  const { idToken } = req.body;
-  if (!idToken)
-    return res
-      .status(400)
-      .send({ success: false, error: "ID token is required" });
   try {
+    const { idToken, role } = req.body;
+    if (!idToken) {
+      return res.status(400).send({ 
+        success: false, 
+        error: "ID token is required" 
+      });
+    }
+
     client.setCredentials({ access_token: idToken });
     const response = await client.request({ url: AUTH_URL });
     const payload = response.data;
-    if (!payload)
-      return res
-        .status(401)
-        .send({ success: false, error: "Invalid ID token" });
+    
+    if (!payload) {
+      return res.status(401).send({ 
+        success: false, 
+        error: "Invalid ID token" 
+      });
+    }
+
     const { id: googleId, email, name, picture } = payload;
-    if (!googleId) {
-      return res
-        .status(400)
-        .send({ success: false, error: "Invalid Google ID" });
+    if (!googleId || !email || !name) {
+      return res.status(400).send({ 
+        success: false, 
+        error: "Invalid Google profile data" 
+      });
     }
+
+    if (!role) {
+      return res.status(400).send({ 
+        success: false, 
+        error: ROLE_REQUIRED_ERROR 
+      });
+    }
+
+    const validRoles = ['user', 'admin', 'employee', 'manager'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).send({ 
+        success: false, 
+        error: INVALID_ROLE_ERROR 
+      });
+    }
+
     let user = await UserSchema.findOne({ email });
-    if (!user) {
-      user = new UserSchema({
-        googleId,
-        email,
-        name,
-        picture,
-        verified: true,
+    if (user) {
+      return res.status(400).send({ 
+        success: false, 
+        error: USER_EMAIL_ALREADY_EXIST 
       });
-      await user.save();
-      const accessToken = generateAccessToken(user);
-      const refreshToken = generateRefreshToken(user);
-      user.refreshToken = refreshToken;
-      await user.save();
-      return res.status(201).send({
-        success: true,
-        message: USER_REGISTER_SUCCESS,
-        user,
-        accessToken,
-      });
-    } else {
-      res.status(404).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
     }
+
+    user = new UserSchema({
+      googleId,
+      email,
+      userName: name,
+      picture,
+      verified: true,
+      role: role
+    });
+    
+    await user.save();
+    
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    return res.status(201).send({
+      success: true,
+      message: USER_REGISTER_SUCCESS,
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          userName: user.userName,
+          picture: user.picture,
+          verified: user.verified,
+          role:user.role
+        },
+        accessToken,
+        refreshToken
+      }
+    });
   } catch (error) {
-    console.error("Error during registration:", error);
-    return res
-      .status(500)
-      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("Google Registration Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 };
 
 const validate = (req, res) => {
-  const { email, password } = req.body;
-
+  const { email, password, userName, role } = req.body;
+  
   if (!email) {
     return res
       .status(400)
       .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
+  
   if (!EMAIL_REGEX.test(email)) {
     return res
       .status(400)
       .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
   }
+  
   if (!password) {
     return res
       .status(400)
       .send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
+  
+  if (!PASSWORD_REGEX.test(password)) {
+    return res
+      .status(400)
+      .send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+  }
+  
+  if (!userName || userName.trim().length === 0) {
+    return res
+      .status(400)
+      .send({ success: false, error: "Username is required!" });
+  }
+
+  if (!role) {
+    return res
+      .status(400)
+      .send({ success: false, error: ROLE_REQUIRED_ERROR });
+  }
+
+  const validRoles = ['user', 'admin', 'employee', 'manager'];
+  if (!validRoles.includes(role)) {
+    return res
+      .status(400)
+      .send({ success: false, error: INVALID_ROLE_ERROR });
+  }
+  
   return true;
 };
 
-
 export async function ResetPassword(req, res) {
-  console.log("ResetPassword");
   try {
     const { email, password } = req.body;
     const validationResponse = validate(req, res);
     if (validationResponse !== true) {
       return;
     }
-    let user = await UserSchema.findOne({ email });
 
-    if (user) {
-      return res.status(400).send({
+    let user = await UserSchema.findOne({ email });
+    if (!user) {
+      return res.status(404).send({
         success: false,
-        error:
-          USER_EMAIL_ALREADY_EXIST,
+        error: EMAIL_NOT_FOUND_ERROR,
       });
     }
-    user = new UserSchema({ email, password });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
     await user.save();
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
+    
     await UserOtpSchema.findOneAndUpdate(
       { userId: user._id },
       { otp, expiresAt: otpExpiration },
       { upsert: true, new: true }
     );
+
     await SendOTPInMail(otp, email);
-    res.status(201).send({
+    
+    return res.status(200).send({
       success: true,
-      message: USER_REGISTER_SUCCESS,
+      message: USER_SEND_OTP,
     });
   } catch (error) {
-    console.log("User Register Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("Password Reset Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }

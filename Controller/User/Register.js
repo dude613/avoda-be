@@ -5,10 +5,12 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import UserSchema from "../../Model/UserSchema.js";
-import UserOtpSchema from "../../Model/UserOtpSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
 import { userContent } from "../../Constants/UserConstants.js";
+import bcrypt from "bcryptjs";
+
+
 
 const  {
   EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
@@ -16,6 +18,7 @@ const  {
   USER_SEND_OTP,
   USER_REGISTER_SUCCESS,
   USER_EMAIL_ALREADY_EXIST,
+  GENERIC_ERROR_MESSAGE,
   OTP_NOT_SENT
 } = userContent;
 
@@ -31,43 +34,65 @@ export async function Register(req, res) {
     if (validationResponse !== true) {
       return;
     }
-    let user = await UserSchema.findOne({ email });
+
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
     if (user) {
-      if (user.verified === "true") {
+      if (user.verified === true) {
         return res.status(400).send({
           success: false,
           error: EMAIL_NOT_FOUND_ERROR,
         });
       }
     } else {
-      user = new UserSchema({ userName, email, password });
-      await user.save();
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      user = await prisma.user.create({
+        data: {
+          userName,
+          email,
+          password: hashedPassword,
+        },
+      });
     }
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    await UserOtpSchema.findOneAndUpdate(
-      { userId: user._id },
-      { otp, expiresAt: otpExpiration },
-      { upsert: true, new: true }
-    );
-   const data = await SendOTPInMail(otp, email);
 
-   if(data?.data){
-    res.status(201).send({
-      success: true,
-      message: USER_SEND_OTP,
-      data:data
+    await prisma.otp.upsert({
+      where: {
+        userId: user.id,
+      },
+      update: {
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+      create: {
+        userId: user.id,
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
     });
-   }
-   else{
-    res.status(500).send({
-      success: false,
-      message: OTP_NOT_SENT,
-      data:data?.error
-    });
-   }
-    
+
+    const data = await SendOTPInMail(otp, email);
+
+    if (data?.data) {
+      res.status(201).send({
+        success: true,
+        message: USER_SEND_OTP,
+        data: data,
+      });
+    } else {
+      res.status(500).send({
+        success: false,
+        message: OTP_NOT_SENT,
+        data: data?.error,
+      });
+    }
   } catch (error) {
     console.log("User Register Error:", error.message);
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
@@ -95,20 +120,33 @@ export const registerWithGoogle = async (req, res) => {
         .status(400)
         .send({ success: false, error: "Invalid Google ID" });
     }
-    let user = await UserSchema.findOne({ email });
+
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
     if (!user) {
-      user = new UserSchema({
-        googleId,
-        email,
-        name,
-        picture,
-        verified: true,
+      user = await prisma.user.create({
+        data: {
+          googleId,
+          email,
+          userName: name,
+          picture,
+          verified: true,
+        },
       });
-      await user.save();
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
-      user.refreshToken = refreshToken;
-      await user.save();
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          refreshToken: refreshToken,
+        },
+      });
       return res.status(201).send({
         success: true,
         message: USER_REGISTER_SUCCESS,
@@ -124,11 +162,11 @@ export const registerWithGoogle = async (req, res) => {
       .status(500)
       .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
-};
+}
 
 const validate = (req, res) => {
   const { email, password } = req.body;
-  
+
   if (!email) {
     return res
       .status(400)
@@ -147,7 +185,6 @@ const validate = (req, res) => {
   return true;
 };
 
-
 export async function ResetPassword(req, res) {
   console.log("ResetPassword");
   try {
@@ -156,25 +193,47 @@ export async function ResetPassword(req, res) {
     if (validationResponse !== true) {
       return;
     }
-    let user = await UserSchema.findOne({ email });
+
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
 
     if (user) {
       return res.status(400).send({
         success: false,
-        error:
-          USER_EMAIL_ALREADY_EXIST,
+        error: USER_EMAIL_ALREADY_EXIST,
       });
     }
-    user = new UserSchema({ email, password });
-    await user.save();
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    user = await prisma.user.create({
+      data: {
+        email: email,
+        password: hashedPassword,
+      },
+    });
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    await UserOtpSchema.findOneAndUpdate(
-      { userId: user._id },
-      { otp, expiresAt: otpExpiration },
-      { upsert: true, new: true }
-    );
+
+    await prisma.otp.upsert({
+      where: {
+        userId: user.id,
+      },
+      update: {
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+      create: {
+        userId: user.id,
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+    });
+
     await SendOTPInMail(otp, email);
     res.status(201).send({
       success: true,

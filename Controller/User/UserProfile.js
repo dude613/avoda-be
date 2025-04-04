@@ -1,6 +1,6 @@
-import UserSchema from "../../Model/UserSchema.js";
 import { userContent } from "../../Constants/UserConstants.js";
 import dotenv from "dotenv";
+import { prisma } from "../../Components/ConnectDatabase.js";
 dotenv.config();
 const {
     EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR,
@@ -13,7 +13,8 @@ const {
     USER_INVALID_OTP,
     USER_OTP_EXPIRE,
     USER_EMAIL_VERIFIED,
-    USER_PROFILE_DATA_SUCCESS
+    USER_PROFILE_DATA_SUCCESS,
+    GENERIC_ERROR_MESSAGE
 } = userContent;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
 
@@ -21,7 +22,12 @@ export async function GetProfileData(req, res) {
     try {
         const { userId } = req.params;
 
-        const user = await UserSchema.findById(userId);
+        const user = await prisma.user.findUnique({
+            where: {
+                id: parseInt(userId),
+            },
+        });
+
         if (!user) {
             return res.status(404).send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
         }
@@ -41,24 +47,24 @@ export async function UpdateProfileData(req, res) {
             return;
         }
 
-        const user = await UserSchema.findById(userId);
-        if (!user) {
-            return res.status(404).send({ success: false, error: "User not found" });
-        }
-
-        user.userName = name || user.userName;
-        user.email = email || user.email;
-        user.role = role || user.role;
-
-        await user.save();
+        const updatedUser = await prisma.user.update({
+            where: {
+                id: parseInt(userId),
+            },
+            data: {
+                userName: name,
+                email: email,
+                role: role,
+            },
+        });
 
         return res.status(200).send({
             success: true,
             message: "User profile updated successfully",
             data: {
-                userName: user.userName,
-                email: user.email,
-                role: user.role,
+                userName: updatedUser.userName,
+                email: updatedUser.email,
+                role: updatedUser.role,
             },
         });
     } catch (error) {
@@ -75,14 +81,15 @@ export async function UpdateProfilePicture(req, res) {
         }
         const imagePath = `${BACKEND_URL}/uploads/${uploadedFile.filename}`;
         const userId = req.body.userId;
-        const user = await UserSchema.findById(userId);
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found." });
-        }
-
-        user.picture = imagePath;
-        await user.save();
+        await prisma.user.update({
+            where: {
+                id: parseInt(userId),
+            },
+            data: {
+                picture: imagePath,
+            },
+        });
 
         return res.status(201).send({
             success: true,

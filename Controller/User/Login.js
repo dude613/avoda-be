@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import UserSchema from "../../Model/UserSchema.js";
 import dotenv from "dotenv";
 dotenv.config();
 import { OAuth2Client } from "google-auth-library";
@@ -8,7 +7,7 @@ import {
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
 import { userContent } from "../../Constants/UserConstants.js";
-import Organization from "../../Model/OrganizationSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 
 const {
   EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
@@ -29,7 +28,11 @@ export async function Login(req, res) {
   }
 
   try {
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
     if (!user) {
       return res
         .status(400)
@@ -44,14 +47,21 @@ export async function Login(req, res) {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-    user.refreshToken = refreshToken;
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save();
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        refreshToken: refreshToken,
+      },
+    });
+
     let onboardingSkipped = false;
-    const organization = await Organization.findOne({ user: user._id });
+    const organization = await prisma.organization.findFirst({
+      where: {
+        user: user.id,
+      },
+    });
 
     if (organization) {
       onboardingSkipped = organization.onboardingSkipped;
@@ -93,17 +103,34 @@ export const loginWithGoogle = async (req, res) => {
         .status(400)
         .send({ success: false, error: "Invalid Google ID" });
     }
-    let user = await UserSchema.findOne({ email });
+
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
 
     if (user) {
-      user.googleId = googleId;
-      user.name = name;
-      user.picture = picture;
-      await user.save();
+      await prisma.user.update({
+        where: {
+          email: email,
+        },
+        data: {
+          googleId: googleId,
+          userName: name,
+          picture: picture,
+        },
+      });
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
-      user.refreshToken = refreshToken;
-      await user.save();
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          refreshToken: refreshToken,
+        },
+      });
       return res.status(200).send({
         success: true,
         message: USER_LOGIN_SUCCESS,
@@ -140,7 +167,7 @@ const validate = (req, res) => {
     return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
   if (!PASSWORD_REGEX.test(password)) {
-    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
+    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
   }
   return true;
 };

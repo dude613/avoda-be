@@ -3,8 +3,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import UserOtpSchema from "../../Model/UserOtpSchema.js";
-import UserSchema from "../../Model/UserSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import crypto from "crypto";
 import { userContent } from "../../Constants/UserConstants.js";
 
@@ -22,25 +21,33 @@ const {
 export async function VerifyOtp(req, res) {
   try {
     const { email, otp } = req.body;
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
     if (!user) {
       return res
         .status(400)
         .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
-    if (user.verified === "true") {
+    if (user.verified === true) {
       return res.status(404).send({
         success: false,
         error: USER_EMAIL_ALREADY_VERIFIED,
       });
     }
-    const otpRecord = await UserOtpSchema.findOne({ userId: user._id });
+
+    const otpRecord = await prisma.otp.findFirst({
+      where: {
+        userId: user.id,
+      },
+    });
 
     if (!otpRecord || otpRecord.otp !== otp) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
-
     if (otpRecord.expiresAt < new Date()) {
       return res.status(400).send({
         success: false,
@@ -48,12 +55,33 @@ export async function VerifyOtp(req, res) {
       });
     }
 
-    await UserOtpSchema.deleteOne({ userId: user._id });
+
+    const otpToDelete = await prisma.otp.findFirst({
+      where: {
+        userId: user.id,
+      },
+    });
+    
+    if (otpToDelete) {
+      await prisma.otp.delete({
+        where: {
+          id: otpToDelete.id,
+        },
+      });
+    }
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
-    user.verified = true;
-    user.refreshToken = refreshToken;
-    await user.save();
+
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        verified: true,
+        refreshToken: refreshToken,
+      },
+    });
 
     return res.status(200).send({
       success: true,
@@ -70,7 +98,11 @@ export async function VerifyOtp(req, res) {
 export async function ResendOtp(req, res) {
   try {
     const { email } = req.body;
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
 
     if (!user) {
       return res
@@ -78,7 +110,7 @@ export async function ResendOtp(req, res) {
         .send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
-    if (user.verified === "true") {
+    if (user.verified === true) {
       return res.status(201).send({
         success: true,
         message: USER_EMAIL_VERIFIED,
@@ -88,16 +120,32 @@ export async function ResendOtp(req, res) {
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
     let otp;
 
-    const existingOtp = await UserOtpSchema.findOne({ userId: user._id });
-    if (existingOtp && existingOtp.expiresAt > new Date()) {
+    const existingOtp = await prisma.otp.findFirst({
+      where: {
+        userId: user.id,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+    if (existingOtp) {
       otp = existingOtp.otp;
     } else {
       otp = crypto.randomInt(100000, 999999).toString();
-      await UserOtpSchema.findOneAndUpdate(
-        { userId: user._id },
-        { otp, expiresAt: otpExpiration },
-        { upsert: true, new: true }
-      );
+      await prisma.otp.upsert({
+        where: {
+          userId: user.id,
+        },
+        update: {
+          otp: parseInt(otp),
+          expiresAt: otpExpiration,
+        },
+        create: {
+          userId: user.id,
+          otp: parseInt(otp),
+          expiresAt: otpExpiration,
+        },
+      });
     }
 
     const data = await SendOTPInMail(otp, email);

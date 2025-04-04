@@ -1,4 +1,4 @@
-import Timer from "../../Model/Timer.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
 
 export const startTimer = async (req, res) => {
@@ -8,30 +8,32 @@ export const startTimer = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Task field is required" });
-    const userId = req.user._id;
+    const userId = req.user.id;
     // Double-check for active timers (race condition protection)
-    const existingActiveTimer = await Timer.findOne({
-      user: userId,
-      isActive: true,
+    const existingActiveTimer = await prisma.timer.findFirst({
+      where: {
+        user: parseInt(userId),
+        isActive: true,
+      },
     });
     if (existingActiveTimer) {
       return res.status(409).json({
         success: false,
-        message: "You already have an active timer.",
+        message: "You already have an active timer. Please stop the current timer before starting a new one.",
         activeTimer: existingActiveTimer,
       });
     }
     // Create a new timer
-    const newTimer = new Timer({
-      user: userId,
-      task,
-      project,
-      client,
-      startTime: new Date(),
-      isActive: true,
+    const newTimer = await prisma.timer.create({
+      data: {
+        user: parseInt(userId),
+        task,
+        project,
+        client,
+        startTime: new Date(),
+        isActive: true,
+      },
     });
-
-    await newTimer.save();
 
     // Notify client via WebSocket
     broadcastToUser(userId, "timer:started", newTimer);
@@ -53,13 +55,15 @@ export const startTimer = async (req, res) => {
 export const stopTimer = async (req, res) => {
   try {
     const { timerId } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
     // Find the active timer
-    const timer = await Timer.findOne({
-      _id: timerId,
-      user: userId,
-      isActive: true,
+    const timer = await prisma.timer.findUnique({
+      where: {
+        id: parseInt(timerId),
+        user: parseInt(userId),
+        isActive: true,
+      },
     });
 
     if (!timer) {
@@ -71,28 +75,26 @@ export const stopTimer = async (req, res) => {
 
     // Calculate duration and update timer
     const endTime = new Date();
+    const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
 
-    if (!timer.startTime) {
-      return res.status(500).json({
-        success: false,
-        message: "Timer start time is missing or invalid",
-      });
-    }
-    const duration = Math.floor((endTime - timer.startTime) / 1000); // Duration in seconds
-
-    timer.endTime = endTime;
-    timer.isActive = false;
-    timer.duration = duration;
-
-    await timer.save();
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: parseInt(timerId),
+      },
+      data: {
+        endTime: endTime,
+        isActive: false,
+        duration: duration,
+      },
+    });
 
     // Notify client via WebSocket
-    broadcastToUser(userId, "timer:stopped", timer);
+    broadcastToUser(userId, "timer:stopped", updatedTimer);
 
     res.status(200).json({
       success: true,
       message: "Timer stopped successfully",
-      timer,
+      timer: updatedTimer,
     });
   } catch (error) {
     console.error("Error stopping timer:", error);
@@ -105,11 +107,13 @@ export const stopTimer = async (req, res) => {
 
 export const getActiveTimer = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
 
-    const activeTimer = await Timer.findOne({
-      user: userId,
-      isActive: true,
+    const activeTimer = await prisma.timer.findFirst({
+      where: {
+        user: parseInt(userId),
+        isActive: true,
+      },
     });
 
     res.status(200).json({
@@ -128,22 +132,33 @@ export const getActiveTimer = async (req, res) => {
 
 export const getUserTimers = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
     const { page = 1, limit = 10 } = req.query;
 
-    const timers = await Timer.find({ user: userId })
-      .sort({ startTime: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
+    const timers = await prisma.timer.findMany({
+      where: {
+        user: parseInt(userId),
+      },
+      orderBy: [
+        {
+          startTime: 'desc',
+        },
+      ],
+      skip: ((page - 1) * limit),
+      take: parseInt(limit),
+    });
 
-    const count = await Timer.countDocuments({ user: userId });
+    const count = await prisma.timer.count({
+      where: {
+        user: parseInt(userId),
+      },
+    });
 
     res.status(200).json({
       success: true,
       timers,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
+      totalPages: Math.ceil(count / parseInt(limit)),
+      currentPage: parseInt(page),
     });
   } catch (error) {
     console.error("Error fetching user timers:", error);

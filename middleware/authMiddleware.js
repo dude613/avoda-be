@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../Model/UserSchema.js";
+import { prisma } from "../Components/ConnectDatabase.js";
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -20,7 +20,19 @@ export const authenticate = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    const user = await User.findById(decoded.userId);
+    console.log(decoded, "Decoded token");
+    
+    console.log(decoded.id, "id");
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication failed: User not found in token",
+      });
+    }
+    
+    const user = await prisma.user.findUnique({
+      where: { email: decoded.email },
+    });
 
     if (!user) {
       return res.status(401).json({
@@ -32,7 +44,7 @@ export const authenticate = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error("Authentication error:", error);
+    console.error("Authentication error:", error.message, error);
     return res.status(401).json({
       success: false,
       message: "Authentication failed: Invalid token",

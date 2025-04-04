@@ -57,10 +57,10 @@ app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
   });
 
-app.use(API_BASE_ROUTE, apiRouter);
-
 // Connect to database
 ConnectDatabase();
+
+app.use(API_BASE_ROUTE, apiRouter);
 
 // Error handling middleware
 app.use(function onError(err, req, res, next) {

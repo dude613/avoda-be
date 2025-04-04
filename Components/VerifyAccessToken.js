@@ -19,7 +19,7 @@ export function verifyAccessToken(req, res, next) {
 
 export function generateAccessToken(user) {
     const payload = {
-        userId: user._id,
+        userId: user.id,
         email: user.email,
     };
     return jwt.sign(payload, process.env.JWT_SECRET_KEY, { expiresIn: "1d" });
@@ -27,7 +27,7 @@ export function generateAccessToken(user) {
 
 export function generateRefreshToken(user) {
     const payload = {
-        userId: user._id,
+        userId: user.id,
         email: user.email
     };
     return jwt.sign(payload, process.env.JWT_REFRESH_SECRET_KEY, { expiresIn: "7d" });

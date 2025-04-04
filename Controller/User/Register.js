@@ -8,17 +8,24 @@ import {
 import UserSchema from "../../Model/UserSchema.js";
 import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
-import { userContent } from "../../Constants/UserConstants.js";
+import * as constants from "../../Constants/UserConstants.js";
 
 const  {
-  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
-  ,EMAIL_REGEX,  
-  USER_SEND_OTP,
-  USER_REGISTER_SUCCESS,
-  USER_EMAIL_ALREADY_EXIST,
-  OTP_NOT_SENT,
-  GENERIC_ERROR_MESSAGE
-} = userContent;
+  errors:{
+    EMAIL_NOT_FOUND_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    PASSWORD_REQUIRED_ERROR,
+    GENERIC_ERROR_MESSAGE,
+    USER_EMAIL_ALREADY_EXIST,
+    OTP_NOT_SENT
+  },
+  success:{
+    USER_REGISTER_SUCCESS,
+  },
+  messages:{
+    USER_SEND_OTP
+  }
+ } = constants;
 
 dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;

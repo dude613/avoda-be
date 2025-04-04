@@ -7,25 +7,25 @@ import * as constants from "../../Constants/UserConstants.js";
 import { mailerContent } from "../../Constants/MailerConstants.js";
 dotenv.config();
 
-const { 
-    errors:{
+const {
+    errors: {
         EMAIL_NOT_FOUND_ERROR,
         INVALID_EMAIL_FORMAT_ERROR,
         PASSWORD_REQUIRED_ERROR,
         PASSWORD_COMPLEXITY_ERROR,
         GENERIC_ERROR_MESSAGE
     },
-    success:{
+    success: {
         PASSWORD_UPDATED_SUCCESS,
     },
-    messages:{
+    messages: {
         PASSWORD_RESET_EMAIL_SENT
     },
-    validation:{
+    validation: {
         EMAIL,
         PASSWORD
     }
- } = constants;
+} = constants;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;

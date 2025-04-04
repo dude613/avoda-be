@@ -11,16 +11,10 @@ import { userContent } from "../../Constants/UserConstants.js";
 import Organization from "../../Model/OrganizationSchema.js";
 
 const {
-  EMAIL_NOT_FOUND_ERROR,
-  EMAIL_REQUIRED_ERROR,
-  INVALID_EMAIL_FORMAT_ERROR,
-  PASSWORD_REQUIRED_ERROR,
-  PASSWORD_COMPLEXITY_ERROR,
-  GENERIC_ERROR_MESSAGE,
-  EMAIL_REGEX,
-  PASSWORD_REGEX,
+  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
+  , PASSWORD_COMPLEXITY_ERROR, GENERIC_ERROR_MESSAGE, EMAIL_REGEX, PASSWORD_REGEX,
   PASSWORD_REQUIRED_INCORRECT,
-  USER_LOGIN_SUCCESS,
+  USER_LOGIN_SUCCESS
 } = userContent;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -44,9 +38,7 @@ export async function Login(req, res) {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(400)
-        .send({ success: false, error: PASSWORD_REQUIRED_INCORRECT });
+      return res.status(400).send({ success: false, error: PASSWORD_REQUIRED_INCORRECT });
     }
 
     const accessToken = generateAccessToken(user);
@@ -59,11 +51,9 @@ export async function Login(req, res) {
     user.otpExpiry = otpExpiry;
     await user.save();
     let onboardingSkipped = false;
-    let organizationExist = false;
     const organization = await Organization.findOne({ user: user._id });
 
     if (organization) {
-      organizationExist = true;
       onboardingSkipped = organization.onboardingSkipped;
     }
 
@@ -73,11 +63,13 @@ export async function Login(req, res) {
       user,
       onboardingSkipped,
       accessToken,
-      organizationExist,
     });
+
   } catch (error) {
     console.error("Error during login:", error);
-    res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    res
+      .status(500)
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
 
@@ -145,14 +137,10 @@ const validate = (req, res) => {
       .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
   }
   if (!password) {
-    return res
-      .status(404)
-      .send({ success: false, error: PASSWORD_REQUIRED_ERROR });
+    return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
   if (!PASSWORD_REGEX.test(password)) {
-    return res
-      .status(404)
-      .send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
   }
   return true;
 };

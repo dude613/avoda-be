@@ -10,6 +10,7 @@ import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/Forgot
 import { uploadImages } from "../../Components/Uploads/UploadImage.js";
 import { GetProfileData, UpdateProfileData , UpdateProfilePicture } from "../../Controller/User/UserProfile.js";
 import { verifyAccessToken } from "../../Components/VerifyAccessToken.js";
+import { Logout } from "../../Controller/User/Logout.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
@@ -23,7 +24,7 @@ authRouter.post("/reset-password", ResetPassword);
 authRouter.post("/new-password", SetNewPassword);
 authRouter.get("/get-profile/:userId", verifyAccessToken, GetProfileData);
 authRouter.put("/update-profile/", verifyAccessToken, UpdateProfileData);
-
+authRouter.post("/logout", Logout);
 authRouter.post(
   "/upload-image",
   uploadImages, 

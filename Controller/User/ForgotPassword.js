@@ -21,7 +21,7 @@ const {
     messages: {
         PASSWORD_RESET_EMAIL_SENT
     },
-    validation: {
+    validations: {
         EMAIL,
         PASSWORD
     }

@@ -16,7 +16,8 @@ const  {
   USER_SEND_OTP,
   USER_REGISTER_SUCCESS,
   USER_EMAIL_ALREADY_EXIST,
-  OTP_NOT_SENT
+  OTP_NOT_SENT,
+  GENERIC_ERROR_MESSAGE
 } = userContent;
 
 dotenv.config();

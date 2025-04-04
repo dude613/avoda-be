@@ -5,13 +5,9 @@ dotenv.config();
 
 const {
     errors: {
-        EMAIL_NOT_FOUND_ERROR,
         EMAIL_REQUIRED_ERROR,
         INVALID_EMAIL_FORMAT_ERROR,
         GENERIC_ERROR_MESSAGE,
-        USER_EMAIL_ALREADY_EXIST,
-        USER_EMAIL_ALREADY_VERIFIED,
-        USER_INVALID_OTP,
         USER_NOT_FOUND,
         INVALID_USER_ID,
         INVALID_FILE_TYPE,
@@ -19,13 +15,8 @@ const {
         NO_FILE_UPLOADED
     },
     success: {
-        USER_EMAIL_VERIFIED,
-        USER_REGISTER_SUCCESS,
+
         USER_PROFILE_DATA_SUCCESS
-    },
-    messages: {
-        USER_OTP_EXPIRE,
-        USER_SEND_OTP
     },
     validations: {
         EMAIL: EMAIL_REGEX

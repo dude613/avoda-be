@@ -1,0 +1,24 @@
+name: Deploy to Staging (Pull and Restart)
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_PRIVATE_KEY }}
+          script: |
+            bash -c '
+              cd /home/ubuntu/avoda-be/
+              git pull origin staging
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/npm i
+              /home/ubuntu/.nvm/versions/node/v22.14.0/bin/node /home/ubuntu/.nvm/versions/node/v22.14.0/bin/pm2 restart avoda-be-staging
+            '

@@ -16,7 +16,7 @@ const {
     USER_PROFILE_DATA_SUCCESS,
     GENERIC_ERROR_MESSAGE
 } = userContent;
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = process.env.BASE_URL || 'http://localhost:8001';
 
 export async function GetProfileData(req, res) {
     try {

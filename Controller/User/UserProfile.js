@@ -12,7 +12,7 @@ const {
     success: {
         USER_PROFILE_DATA_SUCCESS
     },
-    validation: {
+    validations: {
         EMAIL,
         PASSWORD
     }

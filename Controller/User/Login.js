@@ -23,7 +23,7 @@ const {
   success: {
     USER_LOGIN_SUCCESS,
   },
-  validation: {
+  validations: {
     EMAIL,
     PASSWORD
   }

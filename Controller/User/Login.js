@@ -7,15 +7,27 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import { userContent } from "../../Constants/UserConstants.js";
+import * as constants from "../../Constants/UserConstants.js";
 import Organization from "../../Model/OrganizationSchema.js";
 
 const {
-  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
-  , PASSWORD_COMPLEXITY_ERROR, GENERIC_ERROR_MESSAGE, EMAIL_REGEX, PASSWORD_REGEX,
-  PASSWORD_REQUIRED_INCORRECT,
-  USER_LOGIN_SUCCESS
-} = userContent;
+  errors: {
+    EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    PASSWORD_REQUIRED_ERROR,
+    PASSWORD_COMPLEXITY_ERROR,
+    GENERIC_ERROR_MESSAGE,
+    PASSWORD_REQUIRED_INCORRECT,
+  },
+  success: {
+    USER_LOGIN_SUCCESS,
+  },
+  validation: {
+    EMAIL,
+    PASSWORD
+  }
+} = constants;
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
@@ -131,7 +143,7 @@ const validate = (req, res) => {
       .status(400)
       .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
-  if (!EMAIL_REGEX.test(email)) {
+  if (!EMAIL.test(email)) {
     return res
       .status(400)
       .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -139,7 +151,7 @@ const validate = (req, res) => {
   if (!password) {
     return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
-  if (!PASSWORD_REGEX.test(password)) {
+  if (!PASSWORD.test(password)) {
     return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
   }
   return true;

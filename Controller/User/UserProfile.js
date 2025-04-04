@@ -1,14 +1,22 @@
 import UserSchema from "../../Model/UserSchema.js";
-import { userContent } from "../../Constants/UserConstants.js";
+import * as constants from "../../Constants/UserConstants.js";
 import dotenv from "dotenv";
 dotenv.config();
 const {
-    EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR,
-    INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR,
-    EMAIL_REGEX,
-    USER_PROFILE_DATA_SUCCESS,
-    GENERIC_ERROR_MESSAGE
-} = userContent;
+    errors: {
+        EMAIL_NOT_FOUND_ERROR,
+        EMAIL_REQUIRED_ERROR,
+        INVALID_EMAIL_FORMAT_ERROR,
+        GENERIC_ERROR_MESSAGE
+    },
+    success: {
+        USER_PROFILE_DATA_SUCCESS
+    },
+    validation: {
+        EMAIL,
+        PASSWORD
+    }
+} = constants;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
 
 export async function GetProfileData(req, res) {
@@ -98,7 +106,7 @@ const validate = (req, res) => {
             .status(400)
             .send({ success: false, error: EMAIL_REQUIRED_ERROR });
     }
-    if (!EMAIL_REGEX.test(email)) {
+    if (!EMAIL.test(email)) {
         return res
             .status(400)
             .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });

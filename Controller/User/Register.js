@@ -10,8 +10,8 @@ import UserOtpSchema from "../../Model/UserOtpSchema.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
 import * as constants from "../../Constants/UserConstants.js";
 
-const  {
-  errors:{
+const {
+  errors: {
     EMAIL_NOT_FOUND_ERROR,
     INVALID_EMAIL_FORMAT_ERROR,
     PASSWORD_REQUIRED_ERROR,
@@ -19,13 +19,13 @@ const  {
     USER_EMAIL_ALREADY_EXIST,
     OTP_NOT_SENT
   },
-  success:{
+  success: {
     USER_REGISTER_SUCCESS,
   },
-  messages:{
+  messages: {
     USER_SEND_OTP
   }
- } = constants;
+} = constants;
 
 dotenv.config();
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -59,23 +59,23 @@ export async function Register(req, res) {
       { otp, expiresAt: otpExpiration },
       { upsert: true, new: true }
     );
-   const data = await SendOTPInMail(otp, email);
+    const data = await SendOTPInMail(otp, email);
 
-   if(data?.data){
-    res.status(201).send({
-      success: true,
-      message: USER_SEND_OTP,
-      data:data
-    });
-   }
-   else{
-    res.status(500).send({
-      success: false,
-      message: OTP_NOT_SENT,
-      data:data?.error
-    });
-   }
-    
+    if (data?.data) {
+      res.status(201).send({
+        success: true,
+        message: USER_SEND_OTP,
+        data: data
+      });
+    }
+    else {
+      res.status(500).send({
+        success: false,
+        message: OTP_NOT_SENT,
+        data: data?.error
+      });
+    }
+
   } catch (error) {
     console.log("User Register Error:", error.message);
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
@@ -136,7 +136,7 @@ export const registerWithGoogle = async (req, res) => {
 
 const validate = (req, res) => {
   const { email, password } = req.body;
-  
+
   if (!email) {
     return res
       .status(400)

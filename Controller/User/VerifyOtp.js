@@ -9,7 +9,7 @@ import crypto from "crypto";
 import * as constants from "../../Constants/UserConstants.js";
 
 const {
-  errors:{
+  errors: {
     EMAIL_NOT_FOUND_ERROR,
     USER_EMAIL_ALREADY_VERIFIED,
     USER_INVALID_OTP,
@@ -17,10 +17,10 @@ const {
     GENERIC_ERROR_MESSAGE,
     OTP_NOT_SENT
   },
-  success:{
+  success: {
     USER_EMAIL_VERIFIED
   }
- } = constants;
+} = constants;
 
 
 export async function VerifyOtp(req, res) {
@@ -106,22 +106,22 @@ export async function ResendOtp(req, res) {
 
     const data = await SendOTPInMail(otp, email);
 
-    if(data?.data){
+    if (data?.data) {
       return res.status(200).send({
         success: true,
         message: USER_SEND_OTP,
         data: data,
       });
     }
-    else{
+    else {
       return res.status(500).send({
         success: false,
         message: OTP_NOT_SENT,
-        data:data?.error
+        data: data?.error
       });
     }
 
-   
+
   } catch (error) {
     console.log("OTP Resending Error:", error.message);
     return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });

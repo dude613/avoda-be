@@ -29,6 +29,7 @@ export const userContent = {
         USER_OTP_EXPIRE : "OTP expired. Please request a new one.",
         PASSWORD_RESET_EMAIL_SENT : "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",
         USER_SEND_OTP : "OTP has been sent to your registered email address!",
+        USER_LOGOUT_SUCCESS: "User logged out successfully",
     },
     validations: {
         EMAIL : /^[^\s@]+@[^\s@]+\.[^\s@]+$/,

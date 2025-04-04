@@ -6,10 +6,19 @@ import {
 } from "../../Controller/User/Register.js";
 import { Login, loginWithGoogle } from "../../Controller/User/Login.js";
 import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp.js";
-import { ForgotPasswordMail, SetNewPassword } from "../../Controller/User/ForgotPassword.js";
+import {
+  ForgotPasswordMail,
+  SetNewPassword,
+} from "../../Controller/User/ForgotPassword.js";
 import { uploadImages } from "../../Components/Uploads/UploadImage.js";
-import { GetProfileData, UpdateProfileData , UpdateProfilePicture } from "../../Controller/User/UserProfile.js";
+import {
+  GetProfileData,
+  UpdateProfileData,
+  UpdateProfilePicture,
+  GetAllUsers,
+} from "../../Controller/User/UserProfile.js";
 import { verifyAccessToken } from "../../Components/VerifyAccessToken.js";
+import { Logout } from "../../Controller/User/Logout.js";
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);
@@ -24,13 +33,19 @@ authRouter.post("/new-password", SetNewPassword);
 authRouter.get("/get-profile/:userId", verifyAccessToken, GetProfileData);
 authRouter.put("/update-profile/", verifyAccessToken, UpdateProfileData);
 
+authRouter.post("/logout", Logout);
+
+authRouter.get("/allUserInfo/:userId", verifyAccessToken, GetAllUsers);
+
 authRouter.post(
   "/upload-image",
-  uploadImages, 
-  UpdateProfilePicture, 
+  uploadImages,
+  UpdateProfilePicture,
   (err, req, res, next) => {
-    console.error(err); 
-    res.status(500).json({ message: "Internal Server Error", error: err.message });
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: err.message });
     next();
   }
 );

@@ -23,7 +23,8 @@ const {
   messages: {
     PASSWORD_REQUIRED_ERROR,
     PASSWORD_COMPLEXITY_ERROR,
-    USER_SEND_OTP
+    USER_SEND_OTP,
+    OTP_NOT_SENT
   },
   success: {
     USER_REGISTER_SUCCESS
@@ -88,11 +89,22 @@ export async function Register(req, res) {
       { upsert: true, new: true }
     );
 
-    await SendOTPInMail(otp, email);
+    const sendOTP = await SendOTPInMail(otp, email);
+    
+    if (!sendOTP || sendOTP.error) {
+      return res.status(400).send({
+        success: false,
+        error: OTP_NOT_SENT
+      });
+    }
     
     return res.status(201).send({
       success: true,
       message: USER_SEND_OTP,
+      data: {
+        email: email,
+        otpId: sendOTP.data?.id
+      }
     });
   } catch (error) {
     console.error("User Register Error:", error);

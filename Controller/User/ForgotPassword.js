@@ -12,7 +12,8 @@ const {
         EMAIL_NOT_FOUND_ERROR,
         EMAIL_REQUIRED_ERROR,
         INVALID_EMAIL_FORMAT_ERROR,
-        GENERIC_ERROR_MESSAGE
+        GENERIC_ERROR_MESSAGE,
+        GOOGLE_LOGIN_REQUIRED
     },
     success: {
         PASSWORD_UPDATED_SUCCESS
@@ -49,6 +50,14 @@ export async function ForgotPasswordMail(req, res) {
         const user = await UserSchema.findOne({ email });
         if (!user) {
             return res.status(404).json({ success: false, error: EMAIL_NOT_FOUND_ERROR });
+        }
+
+        // Check if user has googleId (Google-based login)
+        if (user.googleId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: GOOGLE_LOGIN_REQUIRED 
+            });
         }
 
         const resetToken = crypto.randomBytes(32).toString("hex");

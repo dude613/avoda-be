@@ -45,7 +45,7 @@ export async function VerifyOtp(req, res) {
       },
     });
 
-    if (!otpRecord || otpRecord.otp !== otp) {
+    if (!otpRecord || otpRecord.otp !== parseInt(otp)) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
     if (otpRecord.expiresAt < new Date()) {

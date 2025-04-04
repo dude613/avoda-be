@@ -58,7 +58,7 @@ export const stopTimer = async (req, res) => {
     const userId = req.user.id;
 
     // Find the active timer
-    const timer = await prisma.timer.findUnique({
+    const timer = await prisma.timer.findFirst({
       where: {
         id: parseInt(timerId),
         user: parseInt(userId),

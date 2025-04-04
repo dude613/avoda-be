@@ -59,7 +59,7 @@ export async function Login(req, res) {
     let onboardingSkipped = false;
     const organization = await prisma.organization.findFirst({
       where: {
-        user: user.id,
+        userId: user.id,
       },
     });
 

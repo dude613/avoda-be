@@ -1,4 +1,3 @@
-
 export const userContent = {
     EMAIL_NOT_FOUND_ERROR : "This email doesn't exist in our database. Please try another email.",
     EMAIL_REQUIRED_ERROR : "email is required!",
@@ -18,7 +17,9 @@ export const userContent = {
     USER_REGISTER_SUCCESS : "User Registered successfully",
     USER_SEND_OTP : "OTP has been sent to your registered email address!",
     USER_PROFILE_DATA_SUCCESS : "user details fetch successfully",
+    ROLE_REQUIRED_ERROR : "Role is required!",
+    INVALID_ROLE_ERROR : "Invalid role! Role must be one of: user, admin, employee, manager",
     EMAIL_REGEX : /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    PASSWORD_REGEX : /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    PASSWORD_REGEX : /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/,
 }
 

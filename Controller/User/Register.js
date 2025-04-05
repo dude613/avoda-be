@@ -10,16 +10,29 @@ import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js"
 import { userContent } from "../../Constants/UserConstants.js";
 import bcrypt from "bcryptjs";
 
-
-
-const  {
-  EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, PASSWORD_REQUIRED_ERROR
-  ,EMAIL_REGEX,  
-  USER_SEND_OTP,
-  USER_REGISTER_SUCCESS,
-  USER_EMAIL_ALREADY_EXIST,
-  GENERIC_ERROR_MESSAGE,
-  OTP_NOT_SENT
+const {
+  errors: {
+    EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    GENERIC_ERROR_MESSAGE,
+    USER_EMAIL_ALREADY_EXIST,
+    USER_EMAIL_ALREADY_VERIFIED
+  },
+  messages: {
+    PASSWORD_REQUIRED_ERROR,
+    PASSWORD_COMPLEXITY_ERROR,
+    USER_SEND_OTP,
+    OTP_NOT_SENT,
+    ROLE_REQUIRED_ERROR
+  },
+  success: {
+    USER_REGISTER_SUCCESS
+  },
+  validations: {
+    EMAIL: EMAIL_REGEX,
+    PASSWORD_REGEX
+  }
 } = userContent;
 
 dotenv.config();
@@ -29,7 +42,15 @@ const client = new OAuth2Client(CLIENT_ID);
 
 export async function Register(req, res) {
   try {
-    const { userName, email, password } = req.body;
+    const { email, password, role } = req.body;
+    let { userName } = req.body;
+    
+    // If userName is not provided, create it from email
+    if (!userName || userName.trim().length === 0) {
+      userName = email.split('@')[0];
+      req.body.userName = userName;
+    }
+
     const validationResponse = validate(req, res);
     if (validationResponse !== true) {
       return;
@@ -45,7 +66,7 @@ export async function Register(req, res) {
       if (user.verified === true) {
         return res.status(400).send({
           success: false,
-          error: EMAIL_NOT_FOUND_ERROR,
+          error: USER_EMAIL_ALREADY_EXIST,
         });
       }
     } else {
@@ -56,6 +77,8 @@ export async function Register(req, res) {
           userName,
           email,
           password: hashedPassword,
+          role,
+      verified: false 
         },
       });
     }
@@ -94,34 +117,58 @@ export async function Register(req, res) {
       });
     }
   } catch (error) {
-    console.log("User Register Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("User Register Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }
 
 export const registerWithGoogle = async (req, res) => {
-  console.log("registerWithGoogle");
-  const { idToken } = req.body;
-  if (!idToken)
-    return res
-      .status(400)
-      .send({ success: false, error: "ID token is required" });
   try {
+    const { idToken, role } = req.body;
+    if (!idToken) {
+      return res.status(400).send({ 
+        success: false, 
+        error: "ID token is required" 
+      });
+    }
+
     client.setCredentials({ access_token: idToken });
     const response = await client.request({ url: AUTH_URL });
     const payload = response.data;
-    if (!payload)
-      return res
-        .status(401)
-        .send({ success: false, error: "Invalid ID token" });
-    const { id: googleId, email, name, picture } = payload;
-    if (!googleId) {
-      return res
-        .status(400)
-        .send({ success: false, error: "Invalid Google ID" });
+    
+    if (!payload) {
+      return res.status(401).send({ 
+        success: false, 
+        error: "Invalid ID token" 
+      });
     }
 
-    let user = await prisma.user.findUnique({
+    const { id: googleId, email, name, picture } = payload;
+    if (!googleId || !email || !name) {
+      return res.status(400).send({ 
+        success: false, 
+        error: "Invalid Google profile data" 
+      });
+    }
+
+if (!role) {
+  return res.status(400).send({ 
+    success: false, 
+    error: ROLE_REQUIRED_ERROR 
+  });
+}
+
+const validRoles = ['user', 'admin', 'employee', 'manager'];
+if (!validRoles.includes(role)) {
+  return res.status(400).send({ 
+    success: false, 
+    error: INVALID_ROLE_ERROR 
+  });
+}    
+let user = await prisma.user.findUnique({
       where: {
         email: email,
       },
@@ -150,43 +197,82 @@ export const registerWithGoogle = async (req, res) => {
       return res.status(201).send({
         success: true,
         message: USER_REGISTER_SUCCESS,
-        user,
-        accessToken,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            userName: user.userName,
+            picture: user.picture,
+            verified: user.verified,
+            role:user.role
+          },
+          accessToken,
+          refreshToken
+        }
       });
     } else {
       res.status(404).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
     }
+
   } catch (error) {
-    console.error("Error during registration:", error);
-    return res
-      .status(500)
-      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("Google Registration Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }
 
 const validate = (req, res) => {
-  const { email, password } = req.body;
-
+  const { email, password, userName, role } = req.body;
+  
   if (!email) {
     return res
       .status(400)
       .send({ success: false, error: EMAIL_REQUIRED_ERROR });
   }
+  
   if (!EMAIL_REGEX.test(email)) {
     return res
       .status(400)
       .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
   }
+  
   if (!password) {
     return res
       .status(400)
       .send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
+  
+  if (!PASSWORD_REGEX.test(password)) {
+    return res
+      .status(400)
+      .send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+  }
+  
+  if (!userName || userName.trim().length === 0) {
+    return res
+      .status(400)
+      .send({ success: false, error: "Username is required!" });
+  }
+
+  if (!role) {
+    return res
+      .status(400)
+      .send({ success: false, error: ROLE_REQUIRED_ERROR });
+  }
+
+  const validRoles = ['user', 'admin', 'employee', 'manager'];
+  if (!validRoles.includes(role)) {
+    return res
+      .status(400)
+      .send({ success: false, error: INVALID_ROLE_ERROR });
+  }
+  
   return true;
 };
 
 export async function ResetPassword(req, res) {
-  console.log("ResetPassword");
   try {
     const { email, password } = req.body;
     const validationResponse = validate(req, res);
@@ -200,10 +286,10 @@ export async function ResetPassword(req, res) {
       },
     });
 
-    if (user) {
-      return res.status(400).send({
+    if (!user) {
+      return res.status(404).send({
         success: false,
-        error: USER_EMAIL_ALREADY_EXIST,
+        error: EMAIL_NOT_FOUND_ERROR,
       });
     }
 
@@ -235,12 +321,16 @@ export async function ResetPassword(req, res) {
     });
 
     await SendOTPInMail(otp, email);
-    res.status(201).send({
+    
+    return res.status(200).send({
       success: true,
-      message: USER_REGISTER_SUCCESS,
+      message: USER_SEND_OTP,
     });
   } catch (error) {
-    console.log("User Register Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("Password Reset Error:", error);
+    return res.status(500).send({ 
+      success: false, 
+      error: GENERIC_ERROR_MESSAGE 
+    });
   }
 }

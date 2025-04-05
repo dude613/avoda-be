@@ -75,6 +75,9 @@ export async function SkipOrganization(req, res) {
 export async function UpdateOrganization(req, res) {
   try {
     const { userId, OrgId, name, industry, size } = req.body;
+    if (!OrgId) {
+      return res.status(404).send({ success: false, error: "Organization ID is required!" });
+  }
     const orgIdInt = parseInt(OrgId, 10);
     const validationResponse = await validate(req, res);
     if (validationResponse !== true) {
@@ -129,11 +132,9 @@ export async function GetOrganization(req, res) {
       },
     });
 
-    if (!orgList) {
-      return res
-        .status(400)
-        .send({ success: false, error: "Organization not found!" });
-    }
+    if (!orgList || orgList.length === 0) {
+      return res.status(404).send({ success: false, error: "No organizations found for this user!" })
+  }
     res
       .status(200)
       .send({
@@ -142,7 +143,8 @@ export async function GetOrganization(req, res) {
         data: orgList,
       });
   } catch (error) {
-    console.log(error.message, "error message get organization list");
+    console.log(error.message, 'error message get organization list');
+        return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
   }
 }
 

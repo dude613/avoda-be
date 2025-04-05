@@ -6,17 +6,83 @@ import {
 import { prisma } from "../../Components/ConnectDatabase.js";
 import crypto from "crypto";
 import { userContent } from "../../Constants/UserConstants.js";
+import rateLimit from "express-rate-limit";
 
 const {
-  EMAIL_NOT_FOUND_ERROR,
-  USER_EMAIL_ALREADY_VERIFIED,
-  USER_INVALID_OTP,
-  USER_OTP_EXPIRE,
-  USER_EMAIL_VERIFIED,
-  GENERIC_ERROR_MESSAGE,
-  OTP_NOT_SENT,
-  USER_SEND_OTP
-} = userContent
+  errors: {
+    EMAIL_NOT_FOUND_ERROR,
+    EMAIL_REQUIRED_ERROR,
+    INVALID_EMAIL_FORMAT_ERROR,
+    USER_EMAIL_ALREADY_VERIFIED,
+    USER_INVALID_OTP,
+    GENERIC_ERROR_MESSAGE,
+    TOO_MANY_REQUESTS_ERROR,
+    OTP_NOT_SENT,
+  },
+  success: { USER_EMAIL_VERIFIED, USER_REGISTER_SUCCESS, USER_SEND_OTP },
+  messages: { USER_OTP_EXPIRE },
+  validations: { EMAIL: EMAIL_REGEX },
+} = userContent;
+
+// Rate limiting configuration
+const verifyOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per windowMs
+  message: { success: false, error: TOO_MANY_REQUESTS_ERROR },
+});
+
+const resendOtpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 attempts per windowMs
+  message: { success: false, error: TOO_MANY_REQUESTS_ERROR },
+});
+
+// Input validation middleware
+const validateOtpInput = (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email) {
+    return res
+      .status(400)
+      .send({ success: false, error: EMAIL_REQUIRED_ERROR });
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    return res
+      .status(400)
+      .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+  }
+
+  if (!otp) {
+    return res.status(400).send({ success: false, error: OTP_REQUIRED_ERROR });
+  }
+
+  if (!/^\d{6}$/.test(otp)) {
+    return res
+      .status(400)
+      .send({ success: false, error: INVALID_OTP_FORMAT_ERROR });
+  }
+
+  next();
+};
+
+const validateEmailInput = (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res
+      .status(400)
+      .send({ success: false, error: EMAIL_REQUIRED_ERROR });
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    return res
+      .status(400)
+      .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+  }
+
+  next();
+};
 
 export async function VerifyOtp(req, res) {
   try {
@@ -49,19 +115,19 @@ export async function VerifyOtp(req, res) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
     if (otpRecord.expiresAt < new Date()) {
+      await UserOtpSchema.deleteOne({ userId: user.id });
       return res.status(400).send({
         success: false,
         error: USER_OTP_EXPIRE,
       });
     }
 
-
     const otpToDelete = await prisma.otp.findFirst({
       where: {
         userId: user.id,
       },
     });
-    
+
     if (otpToDelete) {
       await prisma.otp.delete({
         where: {
@@ -80,18 +146,30 @@ export async function VerifyOtp(req, res) {
       data: {
         verified: true,
         refreshToken: refreshToken,
+        lastLoginAt: new Date(),
       },
     });
 
     return res.status(200).send({
       success: true,
       message: USER_EMAIL_VERIFIED,
-      user,
+      user: {
+        id: user.id,
+        email: user.email,
+        verified: user.verified,
+        role: user.role,
+      },
       accessToken,
     });
   } catch (error) {
-    console.log("OTP Verification Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("OTP Verification Error:", {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    });
+    return res
+      .status(500)
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
 
@@ -117,9 +195,11 @@ export async function ResendOtp(req, res) {
       });
     }
 
-    const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    let otp;
+    // Delete any existing OTPs for this user
+    await UserOtpSchema.deleteMany({ userId: user.id });
 
+    const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    const otp = crypto.randomInt(100000, 999999).toString();
     const existingOtp = await prisma.otp.findFirst({
       where: {
         userId: user.id,
@@ -148,26 +228,39 @@ export async function ResendOtp(req, res) {
       });
     }
 
-    const data = await SendOTPInMail(otp, email);
+    const sendOTP = await SendOTPInMail(otp, email);
 
-    if(data?.data){
-      return res.status(200).send({
-        success: true,
-        message: USER_SEND_OTP,
-        data: data,
-      });
-    }
-    else{
-      return res.status(500).send({
+    if (!sendOTP || sendOTP.error) {
+      return res.status(400).send({
         success: false,
-        message: OTP_NOT_SENT,
-        data:data?.error
+        error: OTP_NOT_SENT,
       });
     }
 
-   
+    return res.status(200).send({
+      success: true,
+      message: USER_SEND_OTP,
+      data: {
+        email: email,
+        otpId: sendOTP.data?.id,
+      },
+    });
   } catch (error) {
-    console.log("OTP Resending Error:", error.message);
-    return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
+    console.error("OTP Resending Error:", {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    });
+    return res
+      .status(500)
+      .send({ success: false, error: GENERIC_ERROR_MESSAGE });
   }
 }
+
+// Export the rate limiters and validators
+export {
+  verifyOtpLimiter,
+  resendOtpLimiter,
+  validateOtpInput,
+  validateEmailInput,
+};

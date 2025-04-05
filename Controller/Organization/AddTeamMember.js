@@ -25,6 +25,20 @@ export async function AddTeamMember(req, res) {
         return res.status(404).send({ success: false, error: `Organization with ID ${orgId} not found!` });
       }
 
+      // Check organization's team member capacity
+      const currentMemberCount = await prisma.teamMember.count({
+        where: {
+          organizationId: parseInt(orgId),
+        },
+      });
+      
+      if (currentMemberCount >= 1000) {
+        return res.status(400).send({
+          success: false,
+          error: "Organization has reached maximum team member capacity!",
+        });
+      }
+
       const existingTeamMember = await prisma.teamMember.findFirst({
         where: {
           email: email,
@@ -52,18 +66,27 @@ export async function AddTeamMember(req, res) {
         },
       });
 
-      await prisma.organization.update({
-        where: {
-          id: parseInt(orgId),
-        },
-        data: {
-          teamMembers: {
-            connect: {
-              id: newTeamMember.id,
+      try {
+        await prisma.organization.update({
+          where: {
+            id: parseInt(orgId),
+          },
+          data: {
+            teamMembers: {
+              connect: {
+                id: newTeamMember.id,
+              },
             },
           },
-        },
-      });
+        });
+      } catch (error) {
+        await prisma.teamMember.delete({
+          where: {
+            id: parseInt(newTeamMember.id),
+          },
+        });
+        throw new Error("Failed to update organization with new team member");
+      }
 
       const resetLink = `${process.env.FRONTEND_URL}/register/setPassword?email=${encodeURIComponent(
         newTeamMember.email
@@ -90,44 +113,85 @@ export async function AddTeamMember(req, res) {
 
   } catch (error) {
     console.log("Error adding team members:", error.message);
-    return res.status(500).send({ error: "Internal server error. Please try again!" });
-    }
-}
+    return res.status(500).send({ error: "Internal server error. Please try again!", details:
+    process.env.NODE_ENV === "development" ? error.message : undefined });
+  }
+};
 
 const validate = (members) => {
   if (!members || members.length === 0) {
     return { success: false, error: "At least one member is required!" };
   }
+  if (members.length > 50) {
+    return {
+      success: false,
+      error: "Cannot add more than 50 members at once!",
+    };
+  }
   const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-  const nameRegex = /^[A-Za-z ]+$/;
+  const nameRegex = /^[A-Za-z\s'-]+$/;
   const seenEmails = new Set();
 
   for (let i = 0; i < members.length; i++) {
     const { email, role, orgId, name } = members[i];
-    if (!name) {
+
+    if (!name || name.trim().length === 0) {
       return { success: false, error: `Name is required for member ${i + 1}` };
     }
+    if (name.length > 100) {
+      return {
+        success: false,
+        error: `Name cannot exceed 100 characters for member ${i + 1}`,
+      };
+    }
     if (!nameRegex.test(name)) {
-      return { success: false, error: `Valid name (only letters and spaces) is required for member ${i + 1}!` };
+      return {
+        success: false,
+        error: `Valid name (only letters, spaces, hyphens and apostrophes) is required for member ${i + 1}!`,
+      };
     }
 
     if (!email) {
-      return { success: false, error: `Email is required for member ${i + 1}!` };
+      return {
+        success: false,
+        error: `Email is required for member ${i + 1}!`,
+      };
+    }
+    if (email.length > 254) {
+      return {
+        success: false,
+        error: `Email cannot exceed 254 characters for member ${i + 1}`,
+      };
     }
     if (!emailRegex.test(email)) {
-      return { success: false, error: `Invalid email format for member ${i + 1}!` };
+      return {
+        success: false,
+        error: `Invalid email format for member ${i + 1}!`,
+      };
     }
-    if (seenEmails.has(email)) {
-      return { success: false, error: `Duplicate email (${email}) found for multiple members!` };
+    if (seenEmails.has(email.toLowerCase())) {
+      return {
+        success: false,
+        error: `Duplicate email (${email}) found for multiple members!`,
+      };
     }
-    seenEmails.add(email);
+    seenEmails.add(email.toLowerCase());
 
-    if (!role || !["employee", "manager", "admin"].includes(role.toLowerCase())) {
-      return { success: false, error: `Valid role is required (employee, manager, admin) for member ${i + 1}!` };
+    if (
+      !role ||
+      !["employee", "manager", "admin"].includes(role.toLowerCase())
+    ) {
+      return {
+        success: false,
+        error: `Valid role is required (employee, manager, admin) for member ${i + 1}!`,
+      };
     }
 
-    if (!orgId) {
-      return { success: false, error: `Organization not found please create organization first` };
+    if (!orgId || !orgId.match(/^[0-9a-fA-F]{24}$/)) {
+      return {
+        success: false,
+        error: `Valid organization ID is required for member ${i + 1}!`,
+      };
     }
   }
   return { success: true };
@@ -195,3 +259,72 @@ export const DeleteUser = async (req, res) => {
     return res.status(500).send({ error: "Internal server error. Please try again!" });
   }
 };
+
+export async function EditTeamMember(req, res) {
+  try {
+    const { members } = req.body;
+
+    const { id, name, email, role, orgId } = members;
+
+    if (!id || !name || !email || !role || !orgId) {
+      return res.status(400).send({
+        success: false,
+        error: "All fields (id, name, email, role, orgId) are required!",
+      });
+    }
+
+    const org = await prisma.organization.findUnique({
+      where: {
+        id: parseInt(orgId),
+      },
+    });
+
+    if (!org) {
+      return res.status(404).send({
+        success: false,
+        error: `Organization with ID ${orgId} not found!`,
+      });
+    }
+
+    const existingTeamMember = await prisma.teamMember.findUnique({
+      where: {
+        id: parseInt(id),
+      },
+      include: {
+        organization: true,
+      },
+    });
+
+    if (!existingTeamMember || existingTeamMember.organizationId !== orgId) {
+      return res.status(404).send({
+        success: false,
+        error: `Team member with ID ${id} not found in this organization!`, // Use id here
+      });
+    }
+
+    // Update fields
+    const updatedTeamMember = await prisma.teamMember.update({
+      where: {
+        id: parseInt(id),
+      },
+      data: {
+        name: name,
+        email: email,
+        role: role.toLowerCase(),
+      },
+    });
+
+    return res.status(200).send({
+      success: true,
+      message: "Team member updated successfully!",
+      updatedMember: updatedTeamMember,
+    });
+  } catch (error) {
+    console.error("Error updating team member:", error.message);
+
+    return res.status(500).send({
+      success: false,
+      error: "Internal server error. Please try again!",
+    });
+  }
+}

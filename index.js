@@ -35,10 +35,10 @@ app.use("/uploads", express.static(join(__dirname, "uploads")));
 
 // Initialize Socket.io
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
-  }
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    }
 });
 
 // Setup middleware
@@ -50,12 +50,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.send(SERVER_WORKING_MESSAGE);
+    res.send(SERVER_WORKING_MESSAGE);
 });
 
 app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
-  });
+});
 
 // Connect to database
 ConnectDatabase();
@@ -72,10 +72,10 @@ Sentry.setupExpressErrorHandler(app);
 //TODO Sentry has a postgres integration
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {
-  socket.on(SOCKET_MESSAGE_EVENT, (data) => {
-    io.emit(SOCKET_MESSAGE_EVENT, data);
-  });
-  socket.on(SOCKET_DISCONNECT_EVENT, () => { });
+    socket.on(SOCKET_MESSAGE_EVENT, (data) => {
+        io.emit(SOCKET_MESSAGE_EVENT, data);
+    });
+    socket.on(SOCKET_DISCONNECT_EVENT, () => { });
 });
 
 // Setup timer-specific WebSocket functionality

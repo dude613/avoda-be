@@ -187,7 +187,7 @@ const validate = (members) => {
       };
     }
 
-    if (!orgId || !orgId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!orgId || !String(orgId).match(/^\d+$/)) {
       return {
         success: false,
         error: `Valid organization ID is required for member ${i + 1}!`,

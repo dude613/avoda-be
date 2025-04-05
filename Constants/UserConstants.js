@@ -26,6 +26,7 @@ export const userContent = {
     messages: {
         PASSWORD_REQUIRED_ERROR : "Password is required!",
         ROLE_REQUIRED_ERROR : "Role is required!",
+        INVALID_ROLE_ERROR : "Role is invalid!",
         PASSWORD_COMPLEXITY_ERROR : "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character.",
         USER_OTP_EXPIRE : "OTP expired. Please request a new one.",
         PASSWORD_RESET_EMAIL_SENT : "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",

@@ -5,8 +5,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
-import UserSchema from "../../Model/UserSchema.js";
-import UserOtpSchema from "../../Model/UserOtpSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
 import { userContent } from "../../Constants/UserConstants.js";
 import bcrypt from "bcryptjs";
@@ -24,7 +23,9 @@ const {
     PASSWORD_REQUIRED_ERROR,
     PASSWORD_COMPLEXITY_ERROR,
     USER_SEND_OTP,
-    OTP_NOT_SENT
+    OTP_NOT_SENT,
+    ROLE_REQUIRED_ERROR,
+    INVALID_ROLE_ERROR
   },
   success: {
     USER_REGISTER_SUCCESS
@@ -56,56 +57,66 @@ export async function Register(req, res) {
       return;
     }
 
-    let user = await UserSchema.findOne({ email });
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
     if (user) {
-      if (user.verified === "true") {
+      if (user.verified === true) {
         return res.status(400).send({
           success: false,
           error: USER_EMAIL_ALREADY_EXIST,
         });
       }
-      return res.status(400).send({
-        success: false,
-        error: USER_EMAIL_ALREADY_VERIFIED,
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      user = await prisma.user.create({
+        data: {
+          userName,
+          email,
+          password: hashedPassword,
+          role,
+      verified: false 
+        },
       });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user = new UserSchema({ 
-      userName, 
-      email, 
-      password: hashedPassword,
-      role,
-      verified: false 
-    });
-    await user.save();
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    
-    await UserOtpSchema.findOneAndUpdate(
-      { userId: user._id },
-      { otp, expiresAt: otpExpiration },
-      { upsert: true, new: true }
-    );
 
-    const sendOTP = await SendOTPInMail(otp, email);
-    
-    if (!sendOTP || sendOTP.error) {
-      return res.status(400).send({
+    await prisma.otp.upsert({
+      where: {
+        userId: user.id,
+      },
+      update: {
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+      create: {
+        userId: user.id,
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+    });
+
+    const data = await SendOTPInMail(otp, email);
+
+    if (data?.data) {
+      res.status(201).send({
+        success: true,
+        message: USER_SEND_OTP,
+        data: data,
+      });
+    } else {
+      res.status(500).send({
         success: false,
-        error: OTP_NOT_SENT
+        message: OTP_NOT_SENT,
+        data: data?.error,
       });
     }
-    
-    return res.status(201).send({
-      success: true,
-      message: USER_SEND_OTP,
-      data: {
-        email: email,
-        otpId: sendOTP.data?.id
-      }
-    });
   } catch (error) {
     console.error("User Register Error:", error);
     return res.status(500).send({ 
@@ -144,61 +155,66 @@ export const registerWithGoogle = async (req, res) => {
       });
     }
 
-    if (!role) {
-      return res.status(400).send({ 
-        success: false, 
-        error: ROLE_REQUIRED_ERROR 
-      });
-    }
+if (!role) {
+  return res.status(400).send({ 
+    success: false, 
+    error: ROLE_REQUIRED_ERROR 
+  });
+}
 
-    const validRoles = ['user', 'admin', 'employee', 'manager'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).send({ 
-        success: false, 
-        error: INVALID_ROLE_ERROR 
-      });
-    }
-
-    let user = await UserSchema.findOne({ email });
-    if (user) {
-      return res.status(400).send({ 
-        success: false, 
-        error: USER_EMAIL_ALREADY_EXIST 
-      });
-    }
-
-    user = new UserSchema({
-      googleId,
-      email,
-      userName: name,
-      picture,
-      verified: true,
-      role: role
+const validRoles = ['user', 'admin', 'employee', 'manager'];
+if (!validRoles.includes(role)) {
+  return res.status(400).send({ 
+    success: false, 
+    error: INVALID_ROLE_ERROR 
+  });
+}    
+let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
     });
-    
-    await user.save();
-    
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-    user.refreshToken = refreshToken;
-    await user.save();
 
-    return res.status(201).send({
-      success: true,
-      message: USER_REGISTER_SUCCESS,
-      data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          userName: user.userName,
-          picture: user.picture,
-          verified: user.verified,
-          role:user.role
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          googleId,
+          email,
+          userName: name,
+          picture,
+          verified: true,
         },
-        accessToken,
-        refreshToken
-      }
-    });
+      });
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          refreshToken: refreshToken,
+        },
+      });
+      return res.status(201).send({
+        success: true,
+        message: USER_REGISTER_SUCCESS,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            userName: user.userName,
+            picture: user.picture,
+            verified: user.verified,
+            role:user.role
+          },
+          accessToken,
+          refreshToken
+        }
+      });
+    } else {
+      res.status(404).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
+    }
+
   } catch (error) {
     console.error("Google Registration Error:", error);
     return res.status(500).send({ 
@@ -206,7 +222,7 @@ export const registerWithGoogle = async (req, res) => {
       error: GENERIC_ERROR_MESSAGE 
     });
   }
-};
+}
 
 const validate = (req, res) => {
   const { email, password, userName, role } = req.body;
@@ -265,7 +281,12 @@ export async function ResetPassword(req, res) {
       return;
     }
 
-    let user = await UserSchema.findOne({ email });
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
     if (!user) {
       return res.status(404).send({
         success: false,
@@ -273,18 +294,32 @@ export async function ResetPassword(req, res) {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
-    await user.save();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    user = await prisma.user.create({
+      data: {
+        email: email,
+        password: hashedPassword,
+      },
+    });
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
-    
-    await UserOtpSchema.findOneAndUpdate(
-      { userId: user._id },
-      { otp, expiresAt: otpExpiration },
-      { upsert: true, new: true }
-    );
+
+    await prisma.otp.upsert({
+      where: {
+        userId: user.id,
+      },
+      update: {
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+      create: {
+        userId: user.id,
+        otp: parseInt(otp),
+        expiresAt: otpExpiration,
+      },
+    });
 
     await SendOTPInMail(otp, email);
     

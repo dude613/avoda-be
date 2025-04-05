@@ -1,4 +1,4 @@
-import UserSchema from "../../Model/UserSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import { userContent } from "../../Constants/UserConstants.js";
 
 const { USER_NOT_FOUND } = userContent.errors;
@@ -9,15 +9,13 @@ export const Logout = async (req, res) => {
   try {
     const { userId } = req.body;
 
-    const user = await UserSchema.findById({ _id: userId });
+    const user = await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: { refreshToken: null, otp: null, otpExpiry: null }
+    });
     if (!user) {
       return res.status(400).json({ success: false, error: USER_NOT_FOUND });
     }
-
-    user.refreshToken = null;
-    user.otp = null;
-    user.otpExpiry = null;
-    await user.save();
 
     return res.status(200).json({
       success: true,

@@ -1,10 +1,10 @@
-import UserSchema from "../../Model/UserSchema.js";
 import dotenv from "dotenv";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate.js";
 import { userContent } from "../../Constants/UserConstants.js";
 import { mailerContent } from "../../Constants/MailerConstants.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 dotenv.config();
 
 const {
@@ -33,20 +33,16 @@ const { RESET_LINK_BASE } = mailerContent;
 export async function ForgotPasswordMail(req, res) {
   try {
     const { email } = req.body;
-
-    // Validate email
-    if (!email) {
-      return res
-        .status(400)
-        .send({ success: false, error: EMAIL_REQUIRED_ERROR });
-    }
-    if (!EMAIL_REGEX.test(email)) {
-      return res
-        .status(400)
-        .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+    const validationResponse = validate(req, res);
+    if (validationResponse !== true) {
+      return;
     }
 
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
     if (!user) {
       return res
         .status(404)
@@ -62,18 +58,17 @@ export async function ForgotPasswordMail(req, res) {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const expiryTime = Date.now() + 15 * 60 * 1000;
+    const expiryTime = new Date(Date.now() + 15 * 60 * 1000);
 
-    const updatedUser = await UserSchema.findOneAndUpdate(
-      { email },
-      {
-        $set: {
-          resetPasswordToken: resetToken,
-          resetPasswordExpires: expiryTime,
-        },
+    const updatedUser = await prisma.user.update({
+      where: {
+        email: email,
       },
-      { new: true }
-    );
+      data: {
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: expiryTime,
+      },
+    });
 
     if (!updatedUser) {
       throw new Error("Failed to update user with reset token");
@@ -81,19 +76,25 @@ export async function ForgotPasswordMail(req, res) {
 
     const resetLink = `${RESET_LINK_BASE}?email=${encodeURIComponent(email)}&token=${resetToken}`;
     const decodedLink = decodeURIComponent(resetLink);
-
     await ForgotTemplate(email, decodedLink);
-
     res.status(200).send({ success: true, message: PASSWORD_RESET_EMAIL_SENT });
 
     // Schedule token cleanup
     setTimeout(
       async () => {
         try {
-          await UserSchema.updateOne(
-            { email, resetPasswordExpires: { $lt: Date.now() } },
-            { $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 } }
-          );
+          await prisma.user.updateMany({
+            where: {
+              email: email,
+              resetPasswordExpires: {
+                lt: new Date(),
+              },
+            },
+            data: {
+              resetPasswordToken: null,
+              resetPasswordExpires: null,
+            },
+          });
         } catch (cleanupError) {
           console.error("Error cleaning up reset token:", cleanupError);
         }

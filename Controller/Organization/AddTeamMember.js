@@ -1,5 +1,4 @@
-import TeamMember from "../../Model/TeamMemberSchema.js";
-import Organization from "../../Model/OrganizationSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendInvitation } from "../../Components/MailerComponents/SendInvitation.js";
 import { generateAccessToken } from "../../Components/VerifyAccessToken.js";
 
@@ -15,103 +14,109 @@ export async function AddTeamMember(req, res) {
 
     for (let i = 0; i < members.length; i++) {
       let { name, email, role, orgId } = members[i];
-      role = role ? role.toLowerCase() : "";
+      role = role ? role.toLowerCase() : '';
 
-      const org = await Organization.findById(orgId);
+      const org = await prisma.organization.findUnique({
+        where: {
+          id: parseInt(orgId),
+        },
+      });
       if (!org) {
-        return res.status(404).send({
-          success: false,
-          error: `Organization with ID ${orgId} not found!`,
-        });
+        return res.status(404).send({ success: false, error: `Organization with ID ${orgId} not found!` });
       }
 
       // Check organization's team member capacity
-      const currentMemberCount = await TeamMember.countDocuments({
-        organization: orgId,
+      const currentMemberCount = await prisma.teamMember.count({
+        where: {
+          organizationId: parseInt(orgId),
+        },
       });
+      
       if (currentMemberCount >= 1000) {
-        // Assuming a reasonable limit
         return res.status(400).send({
           success: false,
           error: "Organization has reached maximum team member capacity!",
         });
       }
 
-      const existingTeamMember = await TeamMember.findOne({
-        email,
-        organization: orgId,
+      const existingTeamMember = await prisma.teamMember.findFirst({
+        where: {
+          email: email,
+          organizationId: parseInt(orgId),
+        },
       });
       if (existingTeamMember) {
-        return res.status(400).send({
-          success: false,
-          error: `User with email ${email} is already a member of this organization!`,
-        });
+        return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
       }
 
-      const user = { email, _id: orgId };
+      const user = { email, id: orgId };
       const accessToken = generateAccessToken(user);
       const resetTokenExpiry = new Date();
       resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
 
-      const newTeamMember = new TeamMember({
-        name,
-        email,
-        role,
-        status: "pending",
-        resetToken: accessToken,
-        resetTokenExpiry,
-        organization: orgId,
+      const newTeamMember = await prisma.teamMember.create({
+        data: {
+          name,
+          email,
+          role,
+          status: "pending",
+          resetToken: accessToken,
+          resetTokenExpiry,
+          organizationId: parseInt(orgId),
+        },
       });
 
-      await newTeamMember.save();
-
       try {
-        org.teamMembers.push(newTeamMember._id);
-        await org.save();
+        await prisma.organization.update({
+          where: {
+            id: parseInt(orgId),
+          },
+          data: {
+            teamMembers: {
+              connect: {
+                id: newTeamMember.id,
+              },
+            },
+          },
+        });
       } catch (error) {
-        // If organization update fails, clean up the created team member
-        await TeamMember.findByIdAndDelete(newTeamMember._id);
+        await prisma.teamMember.delete({
+          where: {
+            id: parseInt(newTeamMember.id),
+          },
+        });
         throw new Error("Failed to update organization with new team member");
       }
 
       const resetLink = `${process.env.FRONTEND_URL}/register/setPassword?email=${encodeURIComponent(
         newTeamMember.email
-      )}&token=${newTeamMember.resetToken}&role=${encodeURIComponent(newTeamMember.role)}`;
+      )}&token=${newTeamMember.resetToken}`;
       resetLinks.push({
         orgName: org.name,
         name: newTeamMember.name,
         email: newTeamMember.email,
         role: newTeamMember.role,
-        resetLink,
+        resetLink
       });
       addedMembers.push(newTeamMember);
     }
 
     if (resetLinks.length > 0) {
-      try {
-        await SendInvitation(resetLinks);
-      } catch (error) {
-        console.error("Failed to send invitations:", error);
-        // Don't fail the entire operation if email sending fails
-        // Just log the error and continue
-      }
+      await SendInvitation(resetLinks);
     }
 
     return res.status(200).send({
       success: true,
       message: `Team member(s) added successfully!`,
-      addedMembers,
+      addedMembers
     });
+
   } catch (error) {
-    console.error("Error adding team members:", error.message);
-    return res.status(500).send({
-      success: false,
-      error: "Internal server error. Please try again!",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    console.log("Error adding team members:", error.message);
+    return res.status(500).send({ error: "Internal server error. Please try again!", details:
+    process.env.NODE_ENV === "development" ? error.message : undefined });
   }
-}
+};
 
 const validate = (members) => {
   if (!members || members.length === 0) {
@@ -182,7 +187,7 @@ const validate = (members) => {
       };
     }
 
-    if (!orgId || !orgId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!orgId || !String(orgId).match(/^\d+$/)) {
       return {
         success: false,
         error: `Valid organization ID is required for member ${i + 1}!`,
@@ -196,134 +201,129 @@ export async function GetAllTeamMember(req, res) {
   try {
     const { userId } = req.params;
     if (!userId) {
-      return res
-        .status(404)
-        .send({ success: false, error: "user id is required" });
-    }
-    const org = await Organization.findOne({ user: userId });
-    if (!org) {
-      return res.status(404).send({
-        success: false,
-        error: `Organization with the given user ID not found!`,
-      });
-    }
-    const teamMembersWithOrg = await TeamMember.find({
-      _id: { $in: org.teamMembers },
-      userDeleteStatus: "active",
-    });
-    if (!teamMembersWithOrg || teamMembersWithOrg.length === 0) {
-      return res.status(404).send({
-        success: false,
-        error: `No team members found for this organization!`,
-      });
+      return res.status(404).send({ success: false, error: "user id is required" });
     }
 
-    const teamMembers = teamMembersWithOrg.map((member) => ({
-      ...member.toObject(),
-      organizationName: org.name,
-    }));
+    const org = await prisma.organization.findFirst({
+      where: {
+        userId: parseInt(userId),
+      },
+    });
+
+    if (!org) {
+      return res.status(404).send({ success: false, error: `Organization with the given user ID not found!` });
+    }
+
+    const teamMembers = await prisma.teamMember.findMany({
+      where: {
+        organizationId: org.id,
+      },
+    });
 
     return res.status(200).send({
       success: true,
       message: "Team members retrieved successfully!",
-      teamMembers: teamMembers,
+      teamMembers: teamMembers.map(member => ({
+        ...member,
+        organizationName: org.name,
+      })),
     });
   } catch (error) {
     console.log("Error getting team members:", error.message);
-    return res
-      .status(500)
-      .send({ error: "Internal server error. Please try again!" });
+    return res.status(500).send({ error: "Internal server error. Please try again!" });
   }
 }
 
-export async function DeleteUser(req, res) {
+export const DeleteUser = async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) {
-      return res
-        .status(404)
-        .send({ success: false, error: "User Id required!" });
+      return res.status(400).send({ success: false, error: "User Id required!" });
     }
-    const user = await TeamMember.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found!" });
-    }
-    user.userDeleteStatus = "archive";
-    await user.save();
+
+    const teamMember = await prisma.teamMember.update({
+      where: {
+        id: parseInt(userId),
+      },
+      data: {
+        userDeleteStatus: "archive",
+      },
+    });
 
     return res.status(200).json({
       success: true,
       message: "User archived successfully!",
     });
   } catch (error) {
-    console.log("Error delete team members:", error.message);
-    return res
-      .status(500)
-      .send({ error: "Internal server error. Please try again!" });
+    console.log("Error deleting team members:", error.message);
+    return res.status(500).send({ error: "Internal server error. Please try again!" });
   }
-}
+};
 
 export async function EditTeamMember(req, res) {
   try {
     const { members } = req.body;
 
-    const { _id, name, email, role, orgId } = members;
+    const { id, name, email, role, orgId } = members;
 
-    if (!_id || !name || !email || !role || !orgId) {
+    if (!id || !name || !email || !role || !orgId) {
       return res.status(400).send({
         success: false,
-
         error: "All fields (id, name, email, role, orgId) are required!",
       });
     }
 
-    const org = await Organization.findById(orgId);
+    const org = await prisma.organization.findUnique({
+      where: {
+        id: parseInt(orgId),
+      },
+    });
 
     if (!org) {
       return res.status(404).send({
         success: false,
-
         error: `Organization with ID ${orgId} not found!`,
       });
     }
 
-    const existingTeamMember = await TeamMember.findOne({
-      _id: _id,
-
-      organization: orgId,
+    const existingTeamMember = await prisma.teamMember.findUnique({
+      where: {
+        id: parseInt(id),
+      },
+      include: {
+        organization: true,
+      },
     });
 
-    if (!existingTeamMember) {
+    if (!existingTeamMember || existingTeamMember.organizationId !== orgId) {
       return res.status(404).send({
         success: false,
-
-        error: `Team member with ID ${id} not found in this organization!`,
+        error: `Team member with ID ${id} not found in this organization!`, // Use id here
       });
     }
 
     // Update fields
-
-    existingTeamMember.name = name;
-
-    existingTeamMember.email = email;
-
-    existingTeamMember.role = role.toLowerCase();
-
-    await existingTeamMember.save();
+    const updatedTeamMember = await prisma.teamMember.update({
+      where: {
+        id: parseInt(id),
+      },
+      data: {
+        name: name,
+        email: email,
+        role: role.toLowerCase(),
+      },
+    });
 
     return res.status(200).send({
       success: true,
-
       message: "Team member updated successfully!",
-
-      updatedMember: existingTeamMember,
+      updatedMember: updatedTeamMember,
     });
   } catch (error) {
     console.error("Error updating team member:", error.message);
 
     return res.status(500).send({
       success: false,
-
       error: "Internal server error. Please try again!",
     });
   }

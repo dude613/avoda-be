@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import UserSchema from "../../Model/UserSchema.js";
 import dotenv from "dotenv";
 dotenv.config();
 import { OAuth2Client } from "google-auth-library";
@@ -8,7 +7,7 @@ import {
   generateRefreshToken,
 } from "../../Components/VerifyAccessToken.js";
 import { userContent } from "../../Constants/UserConstants.js";
-import Organization from "../../Model/OrganizationSchema.js";
+import { prisma } from "../../Components/ConnectDatabase.js";
 
 const {
   errors: {
@@ -43,7 +42,11 @@ export async function Login(req, res) {
   }
 
   try {
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
     if (!user) {
       return res
         .status(400)
@@ -57,35 +60,44 @@ export async function Login(req, res) {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    if (!accessToken || !refreshToken) {
-      return res.status(500).send({ 
-        success: false, 
-        error: "Failed to generate authentication tokens" 
-      });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-    user.refreshToken = refreshToken;
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    
-    try {
-      await user.save();
-    } catch (saveError) {
-      console.error("Error saving user:", saveError);
-      return res.status(500).send({ 
-        success: false, 
-        error: "Failed to update user session" 
-      });
-    }
+if (!accessToken || !refreshToken) {
+  return res.status(500).send({ 
+    success: false, 
+    error: "Failed to generate authentication tokens" 
+  });
+}
+const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);    
+try {
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        refreshToken: refreshToken,
+        otp: otp,
+        otpExpiry: otpExpiry
+      },
+    });
+  } catch (saveError) {
+    console.error("Error saving user:", saveError);
+    return res.status(500).send({ 
+      success: false, 
+      error: "Failed to update user session" 
+    });}
 
     let onboardingSkipped = false;
     try {
-      const organization = await Organization.findOne({ user: user._id });
-      if (organization) {
-        onboardingSkipped = organization.onboardingSkipped;
-      }
+    const organization = await prisma.organization.findFirst({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    if (organization) {
+      onboardingSkipped = organization.onboardingSkipped;
+    }
+
     } catch (orgError) {
       console.error("Error fetching organization:", orgError);
       // Continue with default onboardingSkipped value
@@ -95,7 +107,7 @@ export async function Login(req, res) {
       success: true,
       message: USER_LOGIN_SUCCESS,
       user: {
-        _id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name,
         picture: user.picture,
@@ -146,23 +158,31 @@ export const loginWithGoogle = async (req, res) => {
         .send({ success: false, error: "Invalid Google authentication data" });
     }
 
-    let user = await UserSchema.findOne({ email });
+    let user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
 
     if (user) {
-
-      user.googleId = googleId;
-      user.name = name || user.name;
-      user.picture = picture || user.picture;
-      
       try {
-        await user.save();
-      } catch (saveError) {
-        console.error("Error saving user:", saveError);
-        return res.status(500).send({ 
-          success: false, 
-          error: "Failed to update user profile" 
-        });
-      }
+      await prisma.user.update({
+        where: {
+          email: email,
+        },
+        data: {
+          googleId: googleId,
+          userName: name,
+          picture: picture,
+        },
+      });
+    } catch (saveError) {
+      console.error("Error saving user:", saveError);
+      return res.status(500).send({ 
+        success: false, 
+        error: "Failed to update user profile" 
+      });
+    }
 
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
@@ -173,23 +193,19 @@ export const loginWithGoogle = async (req, res) => {
           error: "Failed to generate authentication tokens" 
         });
       }
-
-      user.refreshToken = refreshToken;
-      try {
-        await user.save();
-      } catch (tokenSaveError) {
-        console.error("Error saving refresh token:", tokenSaveError);
-        return res.status(500).send({ 
-          success: false, 
-          error: "Failed to update user session" 
-        });
-      }
-
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          refreshToken: refreshToken,
+        },
+      });
       return res.status(200).send({
         success: true,
         message: USER_LOGIN_SUCCESS,
         user: {
-          _id: user._id,
+          id: user.id,
           email: user.email,
           name: user.name,
           picture: user.picture,
@@ -234,7 +250,7 @@ const validate = (req, res) => {
     return res.status(404).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
   }
   if (!PASSWORD_REGEX.test(password)) {
-    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR })
+    return res.status(404).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
   }
   return true;
 };

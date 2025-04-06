@@ -26,17 +26,21 @@ export async function GetProfileData(req, res) {
   try {
     const { userId } = req.params;
 
-        const user = await prisma.user.findUnique({
-            where: {
-                id: parseInt(userId),
-            },
-        });
+    if (!userId || isNaN(userId)) {
+      return res.status(400).send({ success: false, error: "Invalid user ID" });
+    }
 
-        if (!user) {
-            return res.status(400).send({ success: false, error: INVALID_USER_ID });
-        }
-        return res.status(200).send({ success: true, message: USER_PROFILE_DATA_SUCCESS, data: user });
-    } catch (error) {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: parseInt(userId),
+      },
+    });
+
+    if (!user) {
+      return res.status(400).send({ success: false, error: INVALID_USER_ID });
+    }
+    return res.status(200).send({ success: true, message: USER_PROFILE_DATA_SUCCESS, data: user });
+  } catch (error) {
         console.error("Error fetching user data: ", error);
         return res.status(500).send({ success: false, error: GENERIC_ERROR_MESSAGE });
     }
@@ -46,31 +50,31 @@ export async function UpdateProfileData(req, res) {
   try {
     const { userId, name, email, role } = req.body;
 
-if (!userId) {
-    return res.status(400).send({ success: false, error: INVALID_USER_ID });
-        }
+    if (!userId || isNaN(userId)) {
+      return res.status(400).send({ success: false, error: "Invalid user ID" });
+    }
 
-        const updatedUser = await prisma.user.update({
-            where: {
-                id: parseInt(userId),
-            },
-            data: {
-                userName: name,
-                email: email,
-                role: role,
-            },
-        });
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: parseInt(userId),
+      },
+      data: {
+        userName: name,
+        email: email,
+        role: role,
+      },
+    });
 
-        return res.status(200).send({
-            success: true,
-            message: "User profile updated successfully",
-            data: {
-                userName: updatedUser.userName,
-                email: updatedUser.email,
-                role: updatedUser.role,
-            },
-        });
-    } catch (error) {
+    return res.status(200).send({
+      success: true,
+      message: "User profile updated successfully",
+      data: {
+        userName: updatedUser.userName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    });
+  } catch (error) {
         console.error("Error updating user profile: ", error);
         return res
           .status(500)
@@ -79,12 +83,12 @@ if (!userId) {
   }
 
 export async function UpdateProfilePicture(req, res) {
-    try {
-        const { userId } = req.body;
+  try {
+    const { userId } = req.body;
 
-    if (!userId) {
-      return res.status(400).send({ success: false, error: INVALID_USER_ID });
-    };
+    if (!userId || isNaN(userId)) {
+      return res.status(400).send({ success: false, error: "Invalid user ID" });
+    }
     const uploadedFile = req.files?.images?.[0];
     if (!uploadedFile) {
       return res.status(400).json({ success: false, error: NO_FILE_UPLOADED });
@@ -103,31 +107,31 @@ export async function UpdateProfilePicture(req, res) {
     const imagePath = `${BACKEND_URL}/uploads/${uploadedFile.filename}`;
 
     try {
-        await prisma.user.update({
-            where: {
-                id: parseInt(userId),
-            },
-            data: {
-                picture: imagePath,
-            },
-        });
+      await prisma.user.update({
+        where: {
+          id: parseInt(userId),
+        },
+        data: {
+          picture: imagePath,
+        },
+      });
     } catch (error) {
-            console.error("Error updating profile picture: ", error);
-            return res
-              .status(404)
-              .send({ success: false, error: USER_NOT_FOUND });
-        }
+      console.error("Error updating profile picture: ", error);
+      return res
+        .status(404)
+        .send({ success: false, error: USER_NOT_FOUND });
+    }
 
 
-        return res.status(201).send({
-            success: true,
-            message: "Image uploaded and profile updated successfully.",
-            image: {
-                filename: uploadedFile.filename,
-                path: imagePath,
-            },
-        });
-    } catch (error) {
+    return res.status(201).send({
+      success: true,
+      message: "Image uploaded and profile updated successfully.",
+      image: {
+        filename: uploadedFile.filename,
+        path: imagePath,
+      },
+    });
+  } catch (error) {
         console.error("Error updating user profile picture:", error);
         return res
       .status(500)
@@ -184,7 +188,11 @@ export async function GetAllUsers(req, res) {
         .send({ success: false, error: "user id is required" });
     }
 
-    const user = await UserSchema.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: {
+        id: parseInt(userId),
+      },
+    });
 
     if (!user) {
       return res.status(404).send({
@@ -194,9 +202,14 @@ export async function GetAllUsers(req, res) {
       });
     }
 
-    const allUserDetails = await UserSchema.find().select(
-      "name email role picture"
-    );
+    const allUserDetails = await prisma.user.findMany({
+      select: {
+        name: true,
+        email: true,
+        role: true,
+        picture: true,
+      },
+    });
 
     if (!allUserDetails || allUserDetails.length === 0) {
       return res.status(404).send({

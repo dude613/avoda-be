@@ -115,7 +115,11 @@ export async function VerifyOtp(req, res) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
     if (otpRecord.expiresAt < new Date()) {
-      await UserOtpSchema.deleteOne({ userId: user.id });
+      await prisma.otp.deleteMany({
+        where: {
+          userId: user.id,
+        },
+      });
       return res.status(400).send({
         success: false,
         error: USER_OTP_EXPIRE,
@@ -196,7 +200,11 @@ export async function ResendOtp(req, res) {
     }
 
     // Delete any existing OTPs for this user
-    await UserOtpSchema.deleteMany({ userId: user.id });
+    await prisma.otp.deleteMany({
+      where: {
+        userId: user.id,
+      },
+    });
 
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
     const otp = crypto.randomInt(100000, 999999).toString();

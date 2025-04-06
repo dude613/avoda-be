@@ -9,6 +9,10 @@ export const Logout = async (req, res) => {
   try {
     const { userId } = req.body;
 
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ success: false, error: "Invalid user ID" });
+    }
+
     const user = await prisma.user.update({
       where: { id: parseInt(userId) },
       data: { refreshToken: null, otp: null, otpExpiry: null }

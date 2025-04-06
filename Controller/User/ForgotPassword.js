@@ -152,7 +152,11 @@ export async function SetNewPassword(req, res) {
         .send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
     }
 
-    const user = await UserSchema.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
     if (!user) {
       return res
         .status(404)
@@ -169,8 +173,17 @@ export async function SetNewPassword(req, res) {
         .send({ success: false, error: PASSWORD_ALREADY_EXIST });
     }
 
-    user.password = password;
-    await user.save();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await prisma.user.update({
+      where: {
+        email: email,
+      },
+      data: {
+        password: hashedPassword,
+      },
+    });
 
     return res
       .status(200)

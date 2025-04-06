@@ -19,6 +19,8 @@ model User {
   createdAt    DateTime       @default(now())
   verified     Boolean        @default(false)
   lastLoginAt  DateTime?
+  otp          String?
+  otpExpiry    DateTime?
   Organization Organization[]
 
   @@map("users")

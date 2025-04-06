@@ -67,24 +67,28 @@ if (!accessToken || !refreshToken) {
   });
 }
 const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);    
-try {
-    await prisma.user.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        refreshToken: refreshToken,
-        otp: otp,
-        otpExpiry: otpExpiry
-      },
-    });
-  } catch (saveError) {
-    console.error("Error saving user:", saveError);
-    return res.status(500).send({ 
-      success: false, 
-      error: "Failed to update user session" 
-    });}
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    
+ try {
+      await prisma.$transaction(async (prisma) => {
+        await prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            refreshToken: refreshToken,
+            otp: otp,
+            otpExpiry: otpExpiry
+          },
+        });
+      });
+    } catch (saveError) {
+      console.error("Error saving user:", saveError);
+      return res.status(500).send({
+        success: false,
+        error: "Failed to update user session",
+      });
+    }
 
     let onboardingSkipped = false;
     try {

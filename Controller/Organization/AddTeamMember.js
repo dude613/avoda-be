@@ -291,6 +291,8 @@ export async function EditTeamMember(req, res) {
       });
     }
 
+    const parsedOrgId = parseInt(orgId);
+
     const existingTeamMember = await prisma.teamMember.findUnique({
       where: {
         id: parseInt(id),
@@ -300,7 +302,7 @@ export async function EditTeamMember(req, res) {
       },
     });
 
-    if (!existingTeamMember || existingTeamMember.organizationId !== orgId) {
+    if (!existingTeamMember || existingTeamMember.organizationId !== parsedOrgId) {
       return res.status(404).send({
         success: false,
         error: `Team member with ID ${id} not found in this organization!`, // Use id here

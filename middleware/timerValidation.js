@@ -3,7 +3,7 @@ import { prisma } from "../Components/ConnectDatabase.js";
 //  Middleware i created to check if a user already has an active timer
 export const validateConcurrentTimers = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);
 
     // Check if user has any active timers
     const activeTimer = await prisma.timer.findFirst({

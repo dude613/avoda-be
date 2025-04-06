@@ -296,9 +296,11 @@ export async function ResetPassword(req, res) {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    user = await prisma.user.create({
-      data: {
+    user = await prisma.user.update({
+      where: {
         email: email,
+      },
+      data: {
         password: hashedPassword,
       },
     });

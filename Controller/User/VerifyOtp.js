@@ -111,7 +111,11 @@ export async function VerifyOtp(req, res) {
       },
     });
 
-    if (!otpRecord || otpRecord.otp !== parseInt(otp)) {
+    if (!otp || isNaN(otp)) {
+      return res.status(400).send({ success: false, error: USER_INVALID_OTP });
+    }
+
+    if (!otpRecord || String(otpRecord.otp) !== String(parseInt(otp))) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
     if (otpRecord.expiresAt < new Date()) {

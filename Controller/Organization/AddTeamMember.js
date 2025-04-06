@@ -16,9 +16,14 @@ export async function AddTeamMember(req, res) {
       let { name, email, role, orgId } = members[i];
       role = role ? role.toLowerCase() : '';
 
+      const parsedOrgId = parseInt(orgId);
+      if (isNaN(parsedOrgId)) {
+        return res.status(400).send({ success: false, error: `Invalid organization ID: ${orgId}` });
+      }
+
       const org = await prisma.organization.findUnique({
         where: {
-          id: parseInt(orgId),
+          id: parsedOrgId,
         },
       });
       if (!org) {
@@ -28,10 +33,10 @@ export async function AddTeamMember(req, res) {
       // Check organization's team member capacity
       const currentMemberCount = await prisma.teamMember.count({
         where: {
-          organizationId: parseInt(orgId),
+          organizationId: parsedOrgId,
         },
       });
-      
+
       if (currentMemberCount >= 1000) {
         return res.status(400).send({
           success: false,
@@ -42,7 +47,7 @@ export async function AddTeamMember(req, res) {
       const existingTeamMember = await prisma.teamMember.findFirst({
         where: {
           email: email,
-          organizationId: parseInt(orgId),
+          organizationId: parsedOrgId,
         },
       });
       if (existingTeamMember) {
@@ -62,14 +67,14 @@ export async function AddTeamMember(req, res) {
           status: "pending",
           resetToken: accessToken,
           resetTokenExpiry,
-          organizationId: parseInt(orgId),
+          organizationId: parsedOrgId,
         },
       });
 
       try {
         await prisma.organization.update({
           where: {
-            id: parseInt(orgId),
+            id: parsedOrgId,
           },
           data: {
             teamMembers: {

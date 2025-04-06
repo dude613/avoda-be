@@ -27,8 +27,9 @@ export const setupTimerWebSockets = (io) => {
       // Verify JWT token
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
       socket.userId = decoded.userId;
-      next();
+       next();
     } catch (error) {
+      console.error("JWT verification error:", error);
       next(new Error("Authentication failed"));
     }
   });

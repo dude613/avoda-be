@@ -115,7 +115,7 @@ export async function VerifyOtp(req, res) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
 
-    if (!otpRecord || String(otpRecord.otp) !== String(parseInt(otp))) {
+    if (!otpRecord || otpRecord.otp !== parseInt(otp, 10)) {
       return res.status(400).send({ success: false, error: USER_INVALID_OTP });
     }
     if (otpRecord.expiresAt < new Date()) {

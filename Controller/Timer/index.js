@@ -8,11 +8,14 @@ export const startTimer = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Task field is required" });
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
     // Double-check for active timers (race condition protection)
     const existingActiveTimer = await prisma.timer.findFirst({
       where: {
-        user: parseInt(userId),
+        user: userId,
         isActive: true,
       },
     });
@@ -55,13 +58,25 @@ export const startTimer = async (req, res) => {
 export const stopTimer = async (req, res) => {
   try {
     const { timerId } = req.params;
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+    const parsedTimerId = parseInt(timerId);
+    if (isNaN(parsedTimerId)) {
+      return res.status(400).json({ success: false, message: "Invalid timer ID" });
+    }
 
     // Find the active timer
+    const parsedUserId = parseInt(userId);
+    if (isNaN(parsedUserId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
     const timer = await prisma.timer.findFirst({
       where: {
-        id: parseInt(timerId),
-        user: parseInt(userId),
+        id: parsedTimerId,
+        user: parsedUserId,
         isActive: true,
       },
     });
@@ -107,11 +122,14 @@ export const stopTimer = async (req, res) => {
 
 export const getActiveTimer = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
 
     const activeTimer = await prisma.timer.findFirst({
       where: {
-        user: parseInt(userId),
+        user: userId,
         isActive: true,
       },
     });
@@ -132,33 +150,46 @@ export const getActiveTimer = async (req, res) => {
 
 export const getUserTimers = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);
+     if (isNaN(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
     const { page = 1, limit = 10 } = req.query;
+
+    const parsedPage = parseInt(page);
+    if (isNaN(parsedPage)) {
+      return res.status(400).json({ success: false, message: "Invalid page number" });
+    }
+
+    const parsedLimit = parseInt(limit);
+    if (isNaN(parsedLimit)) {
+      return res.status(400).json({ success: false, message: "Invalid limit number" });
+    }
 
     const timers = await prisma.timer.findMany({
       where: {
-        user: parseInt(userId),
+        user: userId,
       },
       orderBy: [
         {
           startTime: 'desc',
         },
       ],
-      skip: ((page - 1) * limit),
-      take: parseInt(limit),
+      skip: ((parsedPage - 1) * parsedLimit),
+      take: parsedLimit,
     });
 
     const count = await prisma.timer.count({
       where: {
-        user: parseInt(userId),
+        user: userId,
       },
     });
 
     res.status(200).json({
       success: true,
       timers,
-      totalPages: Math.ceil(count / parseInt(limit)),
-      currentPage: parseInt(page),
+      totalPages: Math.ceil(count / parsedLimit),
+      currentPage: parsedPage,
     });
   } catch (error) {
     console.error("Error fetching user timers:", error);

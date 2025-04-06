@@ -46,6 +46,9 @@ export async function SkipOrganization(req, res) {
         .send({ success: false, error: "Organization Id is required!" });
     }
     const orgIdInt = parseInt(OrgId, 10);
+    if (isNaN(orgIdInt)) {
+      return res.status(400).send({ success: false, error: "Invalid Organization ID format!" });
+    }
     const org = await prisma.organization.update({
       where: {
         id: orgIdInt,
@@ -79,6 +82,9 @@ export async function UpdateOrganization(req, res) {
       return res.status(404).send({ success: false, error: "Organization ID is required!" });
   }
     const orgIdInt = parseInt(OrgId, 10);
+    if (isNaN(orgIdInt)) {
+      return res.status(400).send({ success: false, error: "Invalid Organization ID format!" });
+    }
     const validationResponse = await validate(req, res);
     if (validationResponse !== true) {
       return;

@@ -164,7 +164,7 @@ export async function SetNewPassword(req, res) {
         .json({ success: false, error: EMAIL_NOT_FOUND_ERROR });
     }
 
-    const isMatch = bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
       return res

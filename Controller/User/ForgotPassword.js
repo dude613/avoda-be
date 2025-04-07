@@ -6,7 +6,6 @@ import { ForgotTemplate } from "../../Components/MailerComponents/ForgotTemplate
 import { userContent } from "../../Constants/UserConstants.js";
 import { mailerContent } from "../../Constants/MailerConstants.js";
 dotenv.config();
-import bcrypt from "bcryptjs";
 
 const {
   errors: {
@@ -169,8 +168,8 @@ export async function SetNewPassword(req, res) {
 
         .send({ success: false, error: PASSWORD_ALREADY_EXIST });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
+
+    user.password = password;
     await user.save();
 
     return res

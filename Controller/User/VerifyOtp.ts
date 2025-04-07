@@ -143,7 +143,7 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
         res.status(400).send({ success: false, error: INVALID_OTP_FORMAT_ERROR });
         return;
     }
-
+    //BUG The OTP expiration check happens after the OTP value check. If the OTP is expired but matches, it will return an incorrect error message. Reorder the checks to validate expiration first.
     // Check if OTP record exists, matches, and is not expired
     if (!otpRecord || otpRecord.otp !== otpNumber) {
       res.status(400).send({ success: false, error: USER_INVALID_OTP });

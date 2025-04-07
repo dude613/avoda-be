@@ -20,6 +20,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    //BUG jwt.verify throws an error if verification fails, so no need to check decoded
     
     if (!decoded) {
       return res.status(401).json({

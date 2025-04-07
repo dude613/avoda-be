@@ -57,6 +57,7 @@ app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
 });
 
+//TODO Add DB Error Handling
 // Connect to database
 ConnectDatabase();
 

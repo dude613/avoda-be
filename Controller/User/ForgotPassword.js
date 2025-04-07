@@ -28,7 +28,9 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const AUTH_URL = process.env.AUTH_URL;
 const client = new OAuth2Client(CLIENT_ID);
 const FRONTEND_URL = process.env.FRONTEND_URL;
-const { RESET_LINK_BASE } = mailerContent;
+const {
+  reset: { RESET_LINK_BASE },
+} = mailerContent;
 
 export async function ForgotPasswordMail(req, res) {
   try {
@@ -81,7 +83,6 @@ export async function ForgotPasswordMail(req, res) {
 
     const resetLink = `${RESET_LINK_BASE}?email=${encodeURIComponent(email)}&token=${resetToken}`;
     const decodedLink = decodeURIComponent(resetLink);
-
     await ForgotTemplate(email, decodedLink);
 
     res.status(200).send({ success: true, message: PASSWORD_RESET_EMAIL_SENT });

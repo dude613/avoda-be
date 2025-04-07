@@ -3,7 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import { prisma } from "./ConnectDatabase.js"; // Keep .js extension
 import { User as PrismaUser } from "@prisma/client"; // Import Prisma User type
-
+import * as Sentry from "@sentry/node";
+import { error } from "console";
 dotenv.config();
 
 // Define a type for the decoded JWT payload expected by this middleware
@@ -31,7 +32,7 @@ export const verifyAccessToken = async (
 
   const jwtSecret = process.env.JWT_SECRET_KEY;
   if (!jwtSecret) {
-    console.error("JWT_SECRET_KEY is not defined");
+    Sentry.captureException(error);
     res.status(500).send({ success: false, error: "Server configuration error." });
     return;
   }

@@ -145,8 +145,9 @@ export type SendOtpFunction = (otp: string, email: string) => Promise<any>;
 
 // --- User Profile Types ---
 
-// Params for GetProfileData and GetAllUsers
-export interface GetUserProfileParams extends ParsedQs {
+// Params for GetProfileData and GetAllUsers should extend ParamsDictionary
+import { ParamsDictionary } from 'express-serve-static-core';
+export interface GetUserProfileParams extends ParamsDictionary {
     userId: string; // Params are always strings initially
 }
 
@@ -176,31 +177,17 @@ export interface UploadedFile {
     size: number;
 }
 
-// Extend Express Request type to include 'files' potentially
-// Note: Using `Express.Multer.File` requires installing `@types/multer` (already done)
-// Import Multer file type via Express namespace
-import { Express } from 'express';
-type MulterFile = Express.Multer.File;
-
-
-export interface RequestWithFiles extends Request {
-    // Based on UploadImage.js using upload.fields(), req.files will be an object
-    files?: {
-        [fieldname: string]: MulterFile[];
-    };
-    // Keep 'file' for single uploads if needed elsewhere
-    file?: MulterFile;
-}
-
+// Import Multer file type via Express namespace (if needed within this file, otherwise controller handles it)
+// import { Express } from 'express';
+// type MulterFile = Express.Multer.File;
 
 // --- Typed Express Request Interfaces (Profile) ---
+// Rely on global augmentation from @types/multer for req.file and req.files
 
 export type GetProfileDataRequest = Request<GetUserProfileParams, any, any, ParsedQs>;
 export type UpdateProfileDataRequest = Request<Record<string, never>, any, UpdateProfileDataBody, ParsedQs>;
-// Use RequestWithFiles for profile picture update
-export type UpdateProfilePictureRequest = RequestWithFiles & { // Extend RequestWithFiles
-    body: UpdateProfilePictureBody;
-};
+// Base Request + specific body. Controller will handle req.files using augmented type.
+export type UpdateProfilePictureRequest = Request<Record<string, never>, any, UpdateProfilePictureBody, ParsedQs>;
 export type GetAllUsersRequest = Request<GetUserProfileParams, any, any, ParsedQs>;
 
 

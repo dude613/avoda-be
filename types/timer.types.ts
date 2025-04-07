@@ -1,16 +1,8 @@
 // types/timer.types.ts
 import { Request, Response } from 'express';
+import { ParamsDictionary } from 'express-serve-static-core'; // Import from correct package
 import { ParsedQs } from 'qs';
 import { Timer } from '@prisma/client'; // Import Prisma's generated Timer type
-
-// --- Custom Request Interface to include 'user' property ---
-// Assuming authMiddleware adds a user object to the request
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string; // Assuming user ID is a string initially from the token payload
-    // Add other user properties if available/needed from the token
-  };
-}
 
 // --- Request Body Interfaces ---
 
@@ -34,21 +26,20 @@ export interface GetUserTimersQuery extends ParsedQs {
 }
 
 // --- Typed Express Request Interfaces ---
-// Using AuthenticatedRequest as the base
+// Using Express generics: Request<P = core.ParamsDictionary, ResBody = any, ReqBody = any, ReqQuery = qs.ParsedQs, Locals extends Record<string, any> = Record<string, any>>
+// Relying on global augmentation for req.user
 
-export type StartTimerRequest = AuthenticatedRequest & {
-    body: StartTimerBody;
-};
+// Request with specific Body
+export interface StartTimerRequest extends Request<ParamsDictionary, any, StartTimerBody> {}
 
-export type StopTimerRequest = AuthenticatedRequest & {
-    params: StopTimerParams;
-};
+// Request with specific Params
+export interface StopTimerRequest extends Request<StopTimerParams> {}
 
-export type GetActiveTimerRequest = AuthenticatedRequest; // No specific body, params, or query needed beyond auth
+// Base Request is sufficient if only req.user is needed and no specific params/body/query
+export type GetActiveTimerRequest = Request;
 
-export type GetUserTimersRequest = AuthenticatedRequest & {
-    query: GetUserTimersQuery;
-};
+// Request with specific Query
+export interface GetUserTimersRequest extends Request<ParamsDictionary, any, any, GetUserTimersQuery> {}
 
 // --- Generic Response Type ---
 // Define more specific response types if needed (e.g., for success/error structures)

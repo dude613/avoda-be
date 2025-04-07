@@ -60,8 +60,9 @@ export interface UpdateOrganizationBody {
 }
 
 // --- Request Params Interface ---
+import { ParamsDictionary } from 'express-serve-static-core'; // Import ParamsDictionary
 
-export interface GetOrganizationParams extends ParsedQs {
+export interface GetOrganizationParams extends ParamsDictionary {
     userId: string; // Params are always strings initially, parse to number in handler
 }
 
@@ -153,7 +154,7 @@ export interface EditTeamMemberBody {
 
 // --- Request Params Interface (Team Member) ---
 
-export interface GetAllTeamMemberParams extends ParsedQs {
+export interface GetAllTeamMemberParams extends ParamsDictionary {
     userId: string; // User ID of the organization owner/admin to fetch members for
 }
 

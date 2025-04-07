@@ -1,6 +1,6 @@
-import { userContent } from "../../Constants/UserConstants.js"; // Assuming JS is compatible
+import { userContent } from "../../Constants/UserConstants.js"; // Keep .js extension as required by NodeNext
 import dotenv from "dotenv";
-import { prisma } from "../../Components/ConnectDatabase.js";
+import { prisma } from "../../Components/ConnectDatabase.js"; // Keep .js extension as required by NodeNext
 import {
     GetProfileDataRequest,
     UpdateProfileDataRequest,
@@ -169,9 +169,14 @@ export async function UpdateProfilePicture(req: UpdateProfilePictureRequest, res
       return;
     }
 
-    // Access uploaded file using the correct structure (assuming 'images' fieldname from original JS)
-    // Use optional chaining and check array length
-    const uploadedFile: MulterFile | undefined = req.files?.['images']?.[0];
+    // Access uploaded file using the correct structure (assuming 'images' fieldname from Multer setup)
+    let uploadedFile: MulterFile | undefined = undefined;
+
+    // Check if req.files exists and is the object form (not an array)
+    if (req.files && !Array.isArray(req.files) && req.files['images']) {
+        // Access the first file associated with the 'images' field
+        uploadedFile = req.files['images'][0];
+    }
 
     if (!uploadedFile) {
       res.status(400).json({ success: false, error: NO_FILE_UPLOADED });

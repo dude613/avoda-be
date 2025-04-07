@@ -57,7 +57,7 @@ app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
 });
 
-//TODO Add DB Error Handling
+//MediumTODO Add DB Error Handling
 // Connect to database
 ConnectDatabase();
 
@@ -70,7 +70,6 @@ app.use(function onError(err, req, res, next) {
 });
 // Sentry: Add this after all routes, but before any other error-handling middlewares are defined
 Sentry.setupExpressErrorHandler(app);
-//TODO Sentry has a postgres integration
 
 io.on(SOCKET_CONNECTION_EVENT, (socket) => {
     socket.on(SOCKET_MESSAGE_EVENT, (data) => {

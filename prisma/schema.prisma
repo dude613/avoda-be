@@ -21,6 +21,8 @@ model User {
   lastLoginAt  DateTime?
   otp          String?
   otpExpiry    DateTime?
+  resetPasswordToken String? // Added for password reset
+  resetPasswordExpires DateTime? // Added for password reset expiry
   Organization Organization[]
 
   @@map("users")

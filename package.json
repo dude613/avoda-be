@@ -38,6 +38,12 @@
     "url": "^0.11.4"
   },
   "devDependencies": {
-    "prisma": "^6.5.0"
+    "@types/express": "^5.0.1",
+    "@types/express-rate-limit": "^6.0.2",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.14.0",
+    "@types/qs": "^6.9.18",
+    "prisma": "^6.5.0",
+    "typescript": "^5.8.3"
   }
 }

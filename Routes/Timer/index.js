@@ -1,7 +1,7 @@
 import express from "express"
-import { startTimer, stopTimer, getActiveTimer, getUserTimers } from "../../Controller/Timer/index.js"
-import { validateConcurrentTimers } from "../../middleware/timerValidation.js"
-import { authenticate } from "../../middleware/authMiddleware.js"
+import { startTimer, stopTimer, getActiveTimer, getUserTimers } from "../../Controller/Timer/index" // Removed .js
+import { validateConcurrentTimers } from "../../middleware/timerValidation.js" // Keep .js for JS imports
+import { authenticate } from "../../middleware/authMiddleware.js" // Keep .js for JS imports
 
 const router = express.Router()
 

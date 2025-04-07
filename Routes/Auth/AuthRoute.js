@@ -3,22 +3,22 @@ import {
   Register,
   registerWithGoogle,
   ResetPassword,
-} from "../../Controller/User/Register.js";
-import { Login, loginWithGoogle } from "../../Controller/User/Login.js";
-import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp.js";
+} from "../../Controller/User/Register"; // Removed .js
+import { Login, loginWithGoogle } from "../../Controller/User/Login"; // Removed .js
+import { ResendOtp, VerifyOtp } from "../../Controller/User/VerifyOtp"; // Removed .js
 import {
   ForgotPasswordMail,
   SetNewPassword,
-} from "../../Controller/User/ForgotPassword.js";
-import { uploadImages } from "../../Components/Uploads/UploadImage.js";
+} from "../../Controller/User/ForgotPassword"; // Removed .js
+import { uploadImages } from "../../Components/Uploads/UploadImage.js"; // Keep .js for JS imports
 import {
   GetProfileData,
   UpdateProfileData,
   UpdateProfilePicture,
   GetAllUsers,
-} from "../../Controller/User/UserProfile.js";
-import { verifyAccessToken } from "../../Components/VerifyAccessToken.js";
-import { Logout } from "../../Controller/User/Logout.js";
+} from "../../Controller/User/UserProfile"; // Removed .js
+import { verifyAccessToken } from "../../Components/VerifyAccessToken.js"; // Keep .js for JS imports
+import { Logout } from "../../Controller/User/Logout"; // Removed .js
 
 export const authRouter = express.Router();
 authRouter.post("/register", Register);

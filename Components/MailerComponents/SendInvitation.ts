@@ -13,8 +13,29 @@ const {
     }
 } = mailerContent;
 
-export async function SendInvitation(resetLinks) {
-    const results = { success: [], failed: [] };
+interface InvitationLink {
+    orgName: string;
+    name: string;
+    email: string;
+    role: string;
+    resetLink: string;
+}
+
+interface InvitationLink {
+    orgName: string;
+    name: string;
+    email: string;
+    role: string;
+    resetLink: string;
+}
+
+interface Results {
+    success: string[];
+    failed: { email: string; error: any }[];
+}
+
+export async function SendInvitation(resetLinks: InvitationLink[]) {
+    const results: Results = { success: [], failed: [] };
     
     for (const { orgName, name, email, role, resetLink } of resetLinks) {
         try {
@@ -46,7 +67,7 @@ export async function SendInvitation(resetLinks) {
 
             await Transporter(mailOptions);
             results.success.push(email);
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Error sending email to ${email}:`, error.message);
             results.failed.push({ email, error: error.message });
         }
@@ -57,4 +78,3 @@ export async function SendInvitation(resetLinks) {
     }
     return { success: true, message: "All emails sent successfully." };
 }
-

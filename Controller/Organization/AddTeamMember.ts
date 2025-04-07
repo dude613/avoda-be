@@ -1,16 +1,30 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendInvitation } from "../../Components/MailerComponents/SendInvitation.js";
 import { generateAccessToken } from "../../Components/VerifyAccessToken.js";
+import { Request, Response } from "express";
 
-export async function AddTeamMember(req, res) {
+interface ValidationResponse {
+  success: boolean;
+  error?: string;
+}
+
+interface InvitationLink {
+  orgName: string;
+  name: string;
+  email: string;
+  role: string;
+  resetLink: string;
+}
+
+export async function AddTeamMember(req: Request, res: Response) {
   try {
     const { members } = req.body;
-    const validationResponse = validate(members);
+    const validationResponse: ValidationResponse = validate(members);
     if (!validationResponse.success) {
       return res.status(400).send(validationResponse);
     }
-    const addedMembers = [];
-    const resetLinks = [];
+    const addedMembers: any[] = [];
+    const resetLinks: InvitationLink[] = [];
 
     for (let i = 0; i < members.length; i++) {
       let { name, email, role, orgId } = members[i];
@@ -54,7 +68,7 @@ export async function AddTeamMember(req, res) {
         return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
       }
 
-      const user = { email, id: orgId };
+      const user = { email, id: parsedOrgId };
       const accessToken = generateAccessToken(user);
       const resetTokenExpiry = new Date();
       resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
@@ -84,10 +98,10 @@ export async function AddTeamMember(req, res) {
             },
           },
         });
-      } catch (error) {
+      } catch (error: any) {
         await prisma.teamMember.delete({
           where: {
-            id: parseInt(newTeamMember.id),
+            id: newTeamMember.id,
           },
         });
         throw new Error("Failed to update organization with new team member");
@@ -97,8 +111,8 @@ export async function AddTeamMember(req, res) {
         newTeamMember.email
       )}&token=${newTeamMember.resetToken}`;
       resetLinks.push({
-        orgName: org.name,
-        name: newTeamMember.name,
+        orgName: org?.name ?? "Your Organization",
+        name: newTeamMember?.name ?? "Team Member",
         email: newTeamMember.email,
         role: newTeamMember.role,
         resetLink
@@ -116,14 +130,21 @@ export async function AddTeamMember(req, res) {
       addedMembers
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error adding team members:", error.message);
     return res.status(500).send({ error: "Internal server error. Please try again!", details:
     process.env.NODE_ENV === "development" ? error.message : undefined });
   }
 };
 
-const validate = (members) => {
+interface Member {
+  email: string;
+  role: string;
+  orgId: string;
+  name: string;
+}
+
+const validate = (members: Member[]): ValidationResponse => {
   if (!members || members.length === 0) {
     return { success: false, error: "At least one member is required!" };
   }
@@ -135,7 +156,7 @@ const validate = (members) => {
   }
   const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
   const nameRegex = /^[A-Za-z\s'-]+$/;
-  const seenEmails = new Set();
+  const seenEmails = new Set<string>();
 
   for (let i = 0; i < members.length; i++) {
     const { email, role, orgId, name } = members[i];
@@ -202,7 +223,7 @@ const validate = (members) => {
   return { success: true };
 };
 
-export async function GetAllTeamMember(req, res) {
+export async function GetAllTeamMember(req: Request, res: Response) {
   try {
     const { userId } = req.params;
     if (!userId) {
@@ -233,13 +254,13 @@ export async function GetAllTeamMember(req, res) {
         organizationName: org.name,
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error getting team members:", error.message);
     return res.status(500).send({ error: "Internal server error. Please try again!" });
   }
 }
 
-export const DeleteUser = async (req, res) => {
+export const DeleteUser = async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
     if (!userId) {
@@ -259,13 +280,13 @@ export const DeleteUser = async (req, res) => {
       success: true,
       message: "User archived successfully!",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error deleting team members:", error.message);
     return res.status(500).send({ error: "Internal server error. Please try again!" });
   }
 };
 
-export async function EditTeamMember(req, res) {
+export async function EditTeamMember(req: Request, res: Response) {
   try {
     const { members } = req.body;
 
@@ -326,7 +347,7 @@ export async function EditTeamMember(req, res) {
       message: "Team member updated successfully!",
       updatedMember: updatedTeamMember,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating team member:", error.message);
 
     return res.status(500).send({

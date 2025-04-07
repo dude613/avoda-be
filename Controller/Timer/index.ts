@@ -1,7 +1,12 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
+import { Request, Response } from "express";
 
-export const startTimer = async (req, res) => {
+interface UserRequest extends Request {
+  user: { id: string };
+}
+
+export const startTimer = async (req: UserRequest, res: Response) => {
   try {
     const { task, project, client } = req.body;
     if (!task)
@@ -29,7 +34,7 @@ export const startTimer = async (req, res) => {
     // Create a new timer
     const newTimer = await prisma.timer.create({
       data: {
-        user: parseInt(userId),
+        user: userId,
         task,
         project,
         client,
@@ -39,14 +44,14 @@ export const startTimer = async (req, res) => {
     });
 
     // Notify client via WebSocket
-    broadcastToUser(userId, "timer:started", newTimer);
+    broadcastToUser(String(userId), "timer:started", newTimer);
 
     res.status(201).json({
       success: true,
       message: "Timer started successfully",
       timer: newTimer,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error starting timer:", error);
     res.status(500).json({
       success: false,
@@ -55,28 +60,27 @@ export const startTimer = async (req, res) => {
   }
 };
 
-export const stopTimer = async (req, res) => {
+export const stopTimer = async (req: UserRequest, res: Response) => {
   try {
     const { timerId } = req.params;
     const userId = parseInt(req.user.id);
     if (isNaN(userId)) {
       return res.status(400).json({ success: false, message: "Invalid user ID" });
     }
-    const parsedTimerId = parseInt(timerId);
+    const parsedTimerId = parseInt(timerId as string);
     if (isNaN(parsedTimerId)) {
       return res.status(400).json({ success: false, message: "Invalid timer ID" });
     }
 
     // Find the active timer
-    const parsedUserId = parseInt(userId);
-    if (isNaN(parsedUserId)) {
+    if (isNaN(userId)) {
       return res.status(400).json({ success: false, message: "Invalid user ID" });
     }
 
     const timer = await prisma.timer.findFirst({
       where: {
         id: parsedTimerId,
-        user: parsedUserId,
+        user: userId,
         isActive: true,
       },
     });
@@ -94,7 +98,7 @@ export const stopTimer = async (req, res) => {
 
     const updatedTimer = await prisma.timer.update({
       where: {
-        id: parseInt(timerId),
+        id: parsedTimerId,
       },
       data: {
         endTime: endTime,
@@ -104,14 +108,14 @@ export const stopTimer = async (req, res) => {
     });
 
     // Notify client via WebSocket
-    broadcastToUser(userId, "timer:stopped", updatedTimer);
+    broadcastToUser(String(userId), "timer:stopped", updatedTimer);
 
     res.status(200).json({
       success: true,
       message: "Timer stopped successfully",
       timer: updatedTimer,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error stopping timer:", error);
     res.status(500).json({
       success: false,
@@ -120,7 +124,7 @@ export const stopTimer = async (req, res) => {
   }
 };
 
-export const getActiveTimer = async (req, res) => {
+export const getActiveTimer = async (req: UserRequest, res: Response) => {
   try {
     const userId = parseInt(req.user.id);
     if (isNaN(userId)) {
@@ -139,7 +143,7 @@ export const getActiveTimer = async (req, res) => {
       hasActiveTimer: !!activeTimer,
       timer: activeTimer,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching active timer:", error);
     res.status(500).json({
       success: false,
@@ -148,7 +152,7 @@ export const getActiveTimer = async (req, res) => {
   }
 };
 
-export const getUserTimers = async (req, res) => {
+export const getUserTimers = async (req: UserRequest, res: Response) => {
   try {
     const userId = parseInt(req.user.id);
      if (isNaN(userId)) {
@@ -156,12 +160,12 @@ export const getUserTimers = async (req, res) => {
     }
     const { page = 1, limit = 10 } = req.query;
 
-    const parsedPage = parseInt(page);
+    const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
       return res.status(400).json({ success: false, message: "Invalid page number" });
     }
 
-    const parsedLimit = parseInt(limit);
+    const parsedLimit = parseInt(limit as string);
     if (isNaN(parsedLimit)) {
       return res.status(400).json({ success: false, message: "Invalid limit number" });
     }
@@ -191,7 +195,7 @@ export const getUserTimers = async (req, res) => {
       totalPages: Math.ceil(count / parsedLimit),
       currentPage: parsedPage,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching user timers:", error);
     res.status(500).json({
       success: false,

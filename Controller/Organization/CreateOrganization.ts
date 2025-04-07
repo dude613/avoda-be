@@ -1,6 +1,7 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
+import { Request, Response } from "express";
 
-export async function CreateOrganization(req, res) {
+export async function CreateOrganization(req: Request, res: Response) {
   try {
     const { userId, organizationName, industry, companySize } = req.body;
     const userIdInt = parseInt(userId, 10);
@@ -9,7 +10,7 @@ export async function CreateOrganization(req, res) {
       return;
     }
 
-    const sizeMapping = {
+    const sizeMapping: { [key: string]: string } = {
         "startup (1-10 employees)": "startup",
         "small (11-50 employees)": "small",
         "medium (51-200 employees)": "medium",
@@ -21,22 +22,22 @@ export async function CreateOrganization(req, res) {
         userId: userIdInt,
         name: organizationName,
         industry: industry,
-        size: sizeMapping[companySize],
+        size: sizeMapping[companySize] as "startup" | "small" | "medium" | "large",
       },
     });
 
     return res
       .status(200)
       .send({ success: true, message: "Organization created successfully!" });
-  } catch (e) {
-    console.log("error message organization Creation!", e.message);
+  } catch (error: any) {
+    console.log("error message organization Creation!", error.message);
     return res
       .status(500)
       .send({ error: "Internal server error. Please try again!" });
   }
 }
 
-export async function SkipOrganization(req, res) {
+export async function SkipOrganization(req: Request, res: Response) {
   try {
     const { OrgId } = req.body;
 
@@ -67,7 +68,7 @@ export async function SkipOrganization(req, res) {
     return res
       .status(200)
       .send({ success: true, message: "Organization skipped successfully!" });
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error message skipping organization:", error.message);
     return res
       .status(500)
@@ -75,7 +76,7 @@ export async function SkipOrganization(req, res) {
   }
 }
 
-export async function UpdateOrganization(req, res) {
+export async function UpdateOrganization(req: Request, res: Response) {
   try {
     const { userId, OrgId, name, industry, size } = req.body;
     if (!OrgId) {
@@ -110,7 +111,7 @@ export async function UpdateOrganization(req, res) {
     return res
       .status(200)
       .send({ success: true, message: "Organization updated successfully!" });
-  } catch (e) {
+  } catch (e: any) {
     console.log("error message update organization!", e.message);
     return res
       .status(500)
@@ -118,7 +119,7 @@ export async function UpdateOrganization(req, res) {
   }
 }
 
-export async function GetOrganization(req, res) {
+export async function GetOrganization(req: Request, res: Response) {
   try {
     const userId = parseInt(req.params.userId, 10);
     if (isNaN(userId)) {
@@ -148,13 +149,17 @@ export async function GetOrganization(req, res) {
         message: "Organization list fetch successfully",
         data: orgList,
       });
-  } catch (error) {
+  } catch (error: any) {
     console.log(error.message, 'error message get organization list');
         return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
   }
 }
 
-const validate = async (req, res) => {
+interface MulterRequest extends Request {
+  file: any;
+}
+
+const validate = async (req: Request, res: Response) => {
   try {
     const { userId, organizationName, industry, companySize } = req.body;
 
@@ -242,7 +247,7 @@ const validate = async (req, res) => {
     }
 
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error message during organization validation!", error.message);
     return res
       .status(500)

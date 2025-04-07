@@ -1,11 +1,13 @@
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
-
-const ALLOWED_MIME_TYPES = [
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteImage = exports.deleteImages = exports.uploadImages = void 0;
+var multer_1 = require("multer");
+var path_1 = require("path");
+var url_2 = require("url");
+var path_2 = require("path");
+var fs_2 = require("fs");
+var crypto_2 = require("crypto");
+var ALLOWED_MIME_TYPES = [
     'image/png',
     'image/jpg',
     'image/jpeg',
@@ -13,82 +15,74 @@ const ALLOWED_MIME_TYPES = [
     'image/webp',
     'image/avif',
 ];
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const filesDirectory = path.join(__dirname, '../../uploads');
-
-if (!fs.existsSync(filesDirectory)) {
-    fs.mkdirSync(filesDirectory, { recursive: true });
+var __filename = (0, url_2.fileURLToPath)(import.meta.url);
+var __dirname = (0, path_2.dirname)(__filename);
+var filesDirectory = path_1.default.join(__dirname, '../../uploads');
+if (!fs_2.default.existsSync(filesDirectory)) {
+    fs_2.default.mkdirSync(filesDirectory, { recursive: true });
 }
-
-const fileFilter = (req, file, cb) => {
+var fileFilter = function (req, file, cb) {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-        return cb(
-            new Error('Invalid file type. Only PNG, JPG, JPEG, SVG, WEBP, and AVIF are allowed.'),
-            false
-        );
+        return cb(new Error('Invalid file type. Only PNG, JPG, JPEG, SVG, WEBP, and AVIF are allowed.'), false);
     }
     cb(null, true);
 };
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
+var storage = multer_1.default.diskStorage({
+    destination: function (req, file, cb) {
         cb(null, filesDirectory);
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
-        const ext = path.extname(file.originalname);
-        cb(null, `${uniqueSuffix}${ext}`);
+    filename: function (req, file, cb) {
+        var uniqueSuffix = "".concat(Date.now(), "-").concat(crypto_2.default.randomBytes(6).toString('hex'));
+        var ext = path_1.default.extname(file.originalname);
+        cb(null, "".concat(uniqueSuffix).concat(ext));
     },
 });
-
-const upload = multer({
+var upload = (0, multer_1.default)({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
         fileSize: 20 * 1024 * 1024,
-    },  
+    },
 });
-
-const uploadImages = upload.fields([
+var uploadImages = upload.fields([
     { name: 'images', maxCount: 10 },
 ]);
-
-const deleteImages = () => {
-    if (fs.existsSync(filesDirectory)) {
-        fs.readdir(filesDirectory, (err, files) => {
+exports.uploadImages = uploadImages;
+var deleteImages = function () {
+    if (fs_2.default.existsSync(filesDirectory)) {
+        fs_2.default.readdir(filesDirectory, function (err, files) {
             if (err) {
                 console.error('Could not list the directory.', err);
                 return;
             }
-            files.forEach((file) => {
-                const filePath = path.join(filesDirectory, file);
-                fs.unlink(filePath, (err) => {
+            files.forEach(function (file) {
+                var filePath = path_1.default.join(filesDirectory, file);
+                fs_2.default.unlink(filePath, function (err) {
                     if (err) {
-                        console.error(`Failed to delete file: ${file}`, err);
-                    } else {
-                        console.log(`Deleted file: ${file}`);
+                        console.error("Failed to delete file: ".concat(file), err);
+                    }
+                    else {
+                        console.log("Deleted file: ".concat(file));
                     }
                 });
             });
         });
     }
 };
-
-const deleteImage = (file) => {
-    const filePath = path.join(filesDirectory, file);
-    return new Promise((resolve, reject) => {
-        fs.unlink(filePath, (err) => {
+exports.deleteImages = deleteImages;
+var deleteImage = function (file) {
+    var filePath = path_1.default.join(filesDirectory, file);
+    return new Promise(function (resolve, reject) {
+        fs_2.default.unlink(filePath, function (err) {
             if (err) {
-                console.error(`Failed to delete file: ${file}`, err);
+                console.error("Failed to delete file: ".concat(file), err);
                 reject({ error: err });
-            } else {
-                console.log(`Deleted file: ${file}`);
+            }
+            else {
+                console.log("Deleted file: ".concat(file));
                 resolve({ error: false });
             }
         });
     });
 };
-
-export { uploadImages, deleteImages, deleteImage };
+exports.deleteImage = deleteImage;

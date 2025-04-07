@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  userName     String?
+  email        String         @unique
+  password     String?
+  refreshToken String?
+  googleId     String?        @unique
+  picture      String?
+  role         String?        @default("user")
+  createdAt    DateTime       @default(now())
+  verified     Boolean        @default(false)
+  lastLoginAt  DateTime?
+  otp          String?
+  otpExpiry    DateTime?
+  resetPasswordToken String? // Added for password reset
+  resetPasswordExpires DateTime? // Added for password reset expiry
+  Organization Organization[]
+
+  @@map("users")
+}
+
+model Organization {
+  id                Int          @id @default(autoincrement())
+  userId            Int
+  user              User         @relation(fields: [userId], references: [id])
+  name              String       @unique
+  industry          Industry?
+  size              Size?
+  onboardingSkipped Boolean      @default(false)
+  teamMembers       TeamMember[]
+
+  @@map("organizations")
+}
+
+enum Industry {
+  technology
+  healthCare
+  finance
+  education
+  retail
+  manufacturing
+  other
+}
+
+enum Size {
+  startup
+  small
+  medium
+  large
+}
+
+model TeamMember {
+  id               Int              @id @default(autoincrement())
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  organizationId   Int
+  name             String?
+  email            String           @unique
+  role             TeamMemberRole   @default(employee)
+  status           TeamMemberStatus @default(pending)
+  userDeleteStatus UserDeleteStatus @default(active)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  @@map("team_members")
+}
+
+enum TeamMemberRole {
+  employee
+  manager
+  admin
+}
+
+enum TeamMemberStatus {
+  pending
+  active
+}
+
+enum UserDeleteStatus {
+  active
+  archive
+}
+
+model Timer {
+  id        Int       @id @default(autoincrement())
+  user      Int
+  task      String
+  project   String?
+  client    String?
+  startTime DateTime
+  endTime   DateTime?
+  isActive  Boolean   @default(true)
+  duration  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@map("timers")
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique // Add @unique here
+  otp       Int
+  expiresAt DateTime
+
+  @@map("otps")
+}

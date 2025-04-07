@@ -17,12 +17,11 @@ import { appContent } from "./Constants/AppConstants.js";
 import { setupTimerWebSockets } from "./services/webSocketService.js";
 
 const {
-    SERVER_WORKING_MESSAGE,
-    BASE_URL,
-    SOCKET_CONNECTION_EVENT,
-    SOCKET_MESSAGE_EVENT,
-    SOCKET_DISCONNECT_EVENT,
-    API_BASE_ROUTE
+  SERVER_WORKING_MESSAGE,
+  SOCKET_CONNECTION_EVENT,
+  SOCKET_MESSAGE_EVENT,
+  SOCKET_DISCONNECT_EVENT,
+  API_BASE_ROUTE
 } = appContent;
 
 const app = express();
@@ -44,6 +43,7 @@ const io = new Server(server, {
 
 // Setup middleware
 const PORT = process.env.PORT || 8001;
+const BASE_URL = process.env.BASE_URL || "http://localhost";
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
@@ -57,10 +57,11 @@ app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
 });
 
-app.use(API_BASE_ROUTE, apiRouter);
-
+//TODO Add DB Error Handling
 // Connect to database
 ConnectDatabase();
+
+app.use(API_BASE_ROUTE, apiRouter);
 
 // Error handling middleware
 app.use(function onError(err, req, res, next) {

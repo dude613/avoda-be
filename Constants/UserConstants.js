@@ -14,7 +14,11 @@ export const userContent = {
         INVALID_FILE_TYPE : "Invalid file type. Only JPEG, PNG, and GIF images are allowed",
         FILE_SIZE_EXCEEDED : "File size exceeds the maximum limit of 5MB",
         NO_FILE_UPLOADED : "No file was uploaded",
-        GOOGLE_LOGIN_REQUIRED : "This email is registered with Google. Please use Google login instead."
+        GOOGLE_LOGIN_REQUIRED : "This email is registered with Google. Please use Google login instead.",
+        PASSWORD_ALREADY_EXIST : "New password cannot be the same as the old password.",
+        TOO_MANY_REQUESTS_ERROR : "Too many requests, please try again later.", // Added missing constant
+        OTP_REQUIRED_ERROR : "OTP is required.", // Added missing constant
+        INVALID_OTP_FORMAT_ERROR : "Invalid OTP format (must be 6 digits)." // Added missing constant
     },
     success:{
         USER_EMAIL_VERIFIED : "Email verified successfully!",
@@ -25,6 +29,8 @@ export const userContent = {
     },
     messages: {
         PASSWORD_REQUIRED_ERROR : "Password is required!",
+        ROLE_REQUIRED_ERROR : "Role is required!",
+        INVALID_ROLE_ERROR : "Role is invalid!",
         PASSWORD_COMPLEXITY_ERROR : "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character.",
         USER_OTP_EXPIRE : "OTP expired. Please request a new one.",
         PASSWORD_RESET_EMAIL_SENT : "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",
@@ -37,4 +43,3 @@ export const userContent = {
         PASSWORD_REGEX : /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/,
     }
 }
-

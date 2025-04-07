@@ -30,6 +30,7 @@ export const userContent = {
         PASSWORD_RESET_EMAIL_SENT : "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",
         USER_SEND_OTP : "OTP has been sent to your registered email address!",
         USER_LOGOUT_SUCCESS: "User logged out successfully",
+        PASSWORD_ALREADY_EXIST:"Password is the same as your previous one."
     },
     validations: {
         EMAIL : /^[^\s@]+@[^\s@]+\.[^\s@]+$/,

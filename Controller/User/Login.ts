@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
 import { OAuth2Client, Credentials } from "google-auth-library";
@@ -101,7 +102,7 @@ export async function Login(req: LoginRequest, res: UserResponse): Promise<void>
     }
 
     // Generate OTP (consider if OTP is needed for standard login)
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Update user with refreshToken, OTP, and lastLoginAt

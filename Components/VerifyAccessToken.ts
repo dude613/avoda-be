@@ -55,7 +55,20 @@ export const verifyAccessToken = async (
       return;
     }
 
-    req.user = user;
+    // Create a sanitized user object with only necessary fields
+    const sanitizedUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      userName: user.userName,
+      picture: user.picture,
+      verified: user.verified,
+      lastLoginAt: user.lastLoginAt
+      // Add other non-sensitive fields as needed
+    };
+
+    // Attach the sanitized user object to the request
+    req.user = sanitizedUser;
     next();
   } catch (error: any) {
     console.error("Token verification error:", error.message);

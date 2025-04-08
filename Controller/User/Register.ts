@@ -128,18 +128,18 @@ export async function Register(req: RegisterRequest, res: UserResponse): Promise
     const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes expiry
 
     // Upsert OTP record
-    await prisma.otp.upsert({
-      where: { userId: user.id },
-      update: {
-        otp: parseInt(otp, 10), // Store OTP as number if schema requires
-        expiresAt: otpExpiration,
-      },
-      create: {
-        userId: user.id,
-        otp: parseInt(otp, 10), // Store OTP as number if schema requires
-        expiresAt: otpExpiration,
-      },
-    });
+ await prisma.otp.upsert({
+   where: { userId: user.id },
+   update: {
+    otp: otp, // Store OTP as string to preserve all digits
+    expiresAt: otpExpiration,
+   },
+   create: {
+    userId: user.id,
+    otp: otp, // Store OTP as string to preserve all digits
+    expiresAt: otpExpiration,
+   },
+ });
 
     // Send OTP email
     const otpResponse = await typedSendOTPInMail(otp, email, user.id);
@@ -406,8 +406,8 @@ export async function ResetPassword(req: ResetPasswordRequest, res: UserResponse
 
     await prisma.otp.upsert({
       where: { userId: user.id },
-      update: { otp: parseInt(otp, 10), expiresAt: otpExpiration },
-      create: { userId: user.id, otp: parseInt(otp, 10), expiresAt: otpExpiration },
+      update: { otp: otp, expiresAt: otpExpiration },
+      create: { userId: user.id, otp: otp, expiresAt: otpExpiration },
     });
 
     // Send OTP email and check response

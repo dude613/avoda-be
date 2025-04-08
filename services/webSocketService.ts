@@ -8,12 +8,13 @@ interface SocketTokenPayload extends JwtPayload {
 
 
 interface AuthenticatedSocket extends Socket {
-    userId?: string; 
+    userId?: string;
 }
 
-
-
-const userConnections = new Map<string, AuthenticatedSocket[]>();
+// Map to store active connections by userId
+// Using WeakMap to allow garbage collection of disconnected sockets
+// Note: Since WeakMap requires objects as keys, we'd need to store differently
+const userConnections = new Map<string, Set<AuthenticatedSocket>>();
 
 /**
  * Sets up timer-specific WebSocket functionality using the existing Socket.io instance.
@@ -81,9 +82,9 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
 
       
       if (!userConnections.has(userId)) {
-          userConnections.set(userId, []);
+          userConnections.set(userId, new Set());
       }
-      userConnections.get(userId)?.push(authSocket); 
+      userConnections.get(userId)?.add(authSocket); 
 
       
       authSocket.on("disconnect", (reason: string) => {
@@ -91,12 +92,9 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
           if (userConnections.has(userId)) {
               const connections = userConnections.get(userId);
               if (connections) {
-                  const index = connections.indexOf(authSocket);
-                  if (index !== -1) {
-                      connections.splice(index, 1);
-                  }
+                  connections.delete(authSocket);
                   
-                  if (connections.length === 0) {
+                  if (connections.size === 0) {
                       userConnections.delete(userId);
                       console.log(`Removed user ${userId} from active timer connections.`);
                   }
@@ -120,8 +118,8 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
 export const broadcastToUser = (userId: string, event: string, data: any): void => {
   if (userConnections.has(userId)) {
     const connections = userConnections.get(userId);
-    if (connections && connections.length > 0) {
-        console.log(`Broadcasting event '${event}' to user ${userId} (${connections.length} connection(s))`);
+    if (connections && connections.size > 0) {
+        console.log(`Broadcasting event '${event}' to user ${userId} (${connections.size} connection(s))`);
         connections.forEach((socket) => {
             socket.emit(event, data);
         });

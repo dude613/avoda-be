@@ -154,10 +154,20 @@ export async function UpdateProfilePicture(req: UpdateProfilePictureRequest, res
     // Access uploaded file using the correct structure (assuming 'images' fieldname from Multer setup)
     let uploadedFile: MulterFile | undefined = undefined;
 
-    // Check if req.files exists and is the object form (not an array)
-    if (req.files && !Array.isArray(req.files) && req.files['images']) {
-        // Access the first file associated with the 'images' field
-        uploadedFile = req.files['images'][0];
+    // Check for single file upload (req.file) first
+    if (req.file) {
+        uploadedFile = req.file;
+    } 
+    // Then check for multiple files configuration
+    else if (req.files) {
+        // If req.files is an array
+        if (Array.isArray(req.files) && req.files.length > 0) {
+            uploadedFile = req.files[0];
+        } 
+        // If req.files is an object with field arrays
+        else if (!Array.isArray(req.files) && req.files['images'] && req.files['images'].length > 0) {
+            uploadedFile = req.files['images'][0];
+        }
     }
 
     if (!uploadedFile) {

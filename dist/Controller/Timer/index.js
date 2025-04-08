@@ -2,15 +2,18 @@ import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
 export const startTimer = async (req, res) => {
     try {
-        const { task, project, client, userId } = req.body;
-        if (!task)
-            return res
-                .status(400)
-                .json({ success: false, message: "Task field is required" });
-        // Double-check for active timers (race condition protection)
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const { task, project, client } = req.body;
+        if (!task) {
+            return res.status(400).json({ success: false, message: "Task field is required" });
+        }
+        // Double-check for active timers
         const existingActiveTimer = await prisma.timer.findFirst({
             where: {
-                user: userId, // This is correct based on your schema
+                userId: userId, // Changed from user to userId
                 isActive: true,
             },
         });
@@ -24,7 +27,7 @@ export const startTimer = async (req, res) => {
         // Create a new timer
         const newTimer = await prisma.timer.create({
             data: {
-                user: userId, // This is correct based on your schema
+                userId: userId, // Changed from user to userId
                 task,
                 project,
                 client,
@@ -45,23 +48,22 @@ export const startTimer = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to start timer",
+            error: error.message,
         });
     }
 };
 export const stopTimer = async (req, res) => {
     try {
-        const { timerId } = req.params;
-        const userId = parseInt(req.user.id || "", 10);
-        const parsedTimerId = parseInt(timerId);
-        if (isNaN(parsedTimerId)) {
-            console.log("parsee", timerId);
-            return res.status(400).json({ success: false, message: "Invalid timer ID" });
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
         }
+        const { timerId } = req.params;
         // Find the active timer
         const timer = await prisma.timer.findFirst({
             where: {
-                id: parsedTimerId,
-                user: userId, // This is correct based on your schema
+                id: timerId,
+                userId: userId, // Changed from user to userId
                 isActive: true,
             },
         });
@@ -76,7 +78,7 @@ export const stopTimer = async (req, res) => {
         const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
         const updatedTimer = await prisma.timer.update({
             where: {
-                id: parsedTimerId,
+                id: timerId,
             },
             data: {
                 endTime: endTime,
@@ -97,6 +99,7 @@ export const stopTimer = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "An error occurred in stopping timer",
+            error: error.message,
         });
     }
 };
@@ -108,7 +111,7 @@ export const getActiveTimer = async (req, res) => {
         }
         const activeTimer = await prisma.timer.findFirst({
             where: {
-                user: userId,
+                userId: userId, // Changed from user to userId
                 isActive: true,
             },
         });
@@ -123,6 +126,7 @@ export const getActiveTimer = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch active timer",
+            error: error.message,
         });
     }
 };
@@ -143,7 +147,7 @@ export const getUserTimers = async (req, res) => {
         }
         const timers = await prisma.timer.findMany({
             where: {
-                user: userId,
+                userId: userId, // Changed from user to userId
             },
             orderBy: [
                 {
@@ -155,7 +159,7 @@ export const getUserTimers = async (req, res) => {
         });
         const count = await prisma.timer.count({
             where: {
-                user: userId, // This is correct based on your schema
+                userId: userId, // Changed from user to userId
             },
         });
         res.status(200).json({
@@ -170,6 +174,7 @@ export const getUserTimers = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch timers",
+            error: error.message,
         });
     }
 };

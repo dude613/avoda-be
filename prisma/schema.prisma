@@ -31,7 +31,7 @@ model User {
 
 model Organization {
   id                Int          @id @default(autoincrement())
-  userId            Int
+  userId            String
   user              User         @relation(fields: [userId], references: [id])
   name              String       @unique
   industry          Industry?
@@ -92,7 +92,7 @@ enum UserDeleteStatus {
 
 model Timer {
   id        String    @id @default(uuid()) 
-  userId    String    
+  userId    String
   user      User      @relation(fields: [userId], references: [id])
   task      String
   project   String?
@@ -108,7 +108,7 @@ model Timer {
 
 model Otp {
   id        Int      @id @default(autoincrement())
-  userId    Int      @unique // Add @unique here
+  userId    String      @unique // Add @unique here
   otp       Int
   expiresAt DateTime
 

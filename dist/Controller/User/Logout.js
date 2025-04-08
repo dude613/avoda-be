@@ -10,15 +10,10 @@ export const Logout = async (req, res) => {
             res.status(400).json({ success: false, error: "User ID is required in the request body." });
             return;
         }
-        const userId = parseInt(userIdString, 10);
-        if (isNaN(userId)) {
-            res.status(400).json({ success: false, error: "Invalid user ID format. Must be a number." });
-            return;
-        }
         // Use updateMany to avoid error if user not found, or findUnique first
         const updateResult = await prisma.user.updateMany({
             where: {
-                id: userId,
+                id: userIdString,
                 // Optionally check if refreshToken is already null to avoid unnecessary updates
                 // refreshToken: { not: null }
             },
@@ -31,7 +26,7 @@ export const Logout = async (req, res) => {
         // Check if any user was actually updated
         if (updateResult.count === 0) {
             // Check if the user exists at all to give a more specific error
-            const userExists = await prisma.user.findUnique({ where: { id: userId } });
+            const userExists = await prisma.user.findUnique({ where: { id: userIdString } });
             if (!userExists) {
                 res.status(404).json({ success: false, error: USER_NOT_FOUND }); // Use 404 for not found
             }

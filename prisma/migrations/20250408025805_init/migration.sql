@@ -15,7 +15,7 @@ CREATE TYPE "UserDeleteStatus" AS ENUM ('active', 'archive');
 
 -- CreateTable
 CREATE TABLE "users" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "userName" TEXT,
     "email" TEXT NOT NULL,
     "password" TEXT,
@@ -25,6 +25,11 @@ CREATE TABLE "users" (
     "role" TEXT DEFAULT 'user',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "verified" BOOLEAN NOT NULL DEFAULT false,
+    "lastLoginAt" TIMESTAMP(3),
+    "otp" TEXT,
+    "otpExpiry" TIMESTAMP(3),
+    "resetPasswordToken" TEXT,
+    "resetPasswordExpires" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -32,7 +37,7 @@ CREATE TABLE "users" (
 -- CreateTable
 CREATE TABLE "organizations" (
     "id" SERIAL NOT NULL,
-    "user" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "industry" "Industry",
     "size" "Size",
@@ -45,6 +50,8 @@ CREATE TABLE "organizations" (
 CREATE TABLE "team_members" (
     "id" SERIAL NOT NULL,
     "organizationId" INTEGER NOT NULL,
+    "name" TEXT,
+    "email" TEXT NOT NULL,
     "role" "TeamMemberRole" NOT NULL DEFAULT 'employee',
     "status" "TeamMemberStatus" NOT NULL DEFAULT 'pending',
     "userDeleteStatus" "UserDeleteStatus" NOT NULL DEFAULT 'active',
@@ -56,8 +63,8 @@ CREATE TABLE "team_members" (
 
 -- CreateTable
 CREATE TABLE "timers" (
-    "id" SERIAL NOT NULL,
-    "user" INTEGER NOT NULL,
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
     "task" TEXT NOT NULL,
     "project" TEXT,
     "client" TEXT,
@@ -89,5 +96,17 @@ CREATE UNIQUE INDEX "users_googleId_key" ON "users"("googleId");
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_name_key" ON "organizations"("name");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "team_members_email_key" ON "team_members"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "otps_userId_key" ON "otps"("userId");
+
+-- AddForeignKey
+ALTER TABLE "organizations" ADD CONSTRAINT "organizations_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "team_members" ADD CONSTRAINT "team_members_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "timers" ADD CONSTRAINT "timers_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

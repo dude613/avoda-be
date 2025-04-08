@@ -240,11 +240,11 @@ export async function ResendOtp(req: ResendOtpRequest, res: UserResponse): Promi
 
     // Send the new OTP via email
     // Send the new OTP via email
-    const sendOTPResponse: any = await typedSendOTPInMail(newOtp, email); // Response is 'any'
+    const sendOTPResponse: any = await typedSendOTPInMail(newOtp, email, user.id);
 
     // Check mailer response dynamically
     // Check for Resend success ({ id: string }) or custom error ({ success: false, error: string })
-    if (sendOTPResponse && sendOTPResponse.id) { // Success case (has 'id')
+    if (sendOTPResponse && sendOTPResponse.id) {
         res.status(200).send({
             success: true,
             message: USER_SEND_OTP,

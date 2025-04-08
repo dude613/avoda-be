@@ -71,7 +71,7 @@ export async function AddTeamMember(req: Request, res: Response) {
         return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
       }
 
-      const user = { email, id: parsedOrgId };
+      const user = { email, id: org.userId.toString() };
       const accessToken = generateAccessToken(user);
       const resetTokenExpiry = new Date();
       resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
@@ -230,7 +230,7 @@ export async function GetAllTeamMember(req: Request, res: Response) {
 
     const org = await prisma.organization.findFirst({
       where: {
-        userId: parseInt(userId),
+        userId: userId,
       },
     });
 
@@ -267,7 +267,7 @@ export const DeleteUser = async (req: Request, res: Response) => {
 
     const teamMember = await prisma.teamMember.update({
       where: {
-        id: parseInt(userId),
+        id: userId,
       },
       data: {
         userDeleteStatus: "archive",

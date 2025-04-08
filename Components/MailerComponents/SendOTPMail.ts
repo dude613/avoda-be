@@ -33,15 +33,14 @@ interface SendOtpError {
  * Sends an OTP verification email.
  * @param otp - The One-Time Password.
  * @param toEmail - The recipient's email address.
+ * @param userId - The user's ID.
  * @returns The result from the Resend API or an error object.
  */
-export async function SendOTPInMail(otp: string, toEmail: string): Promise<CreateEmailResponse | SendOtpError> {
+export async function SendOTPInMail(otp: string, toEmail: string, userId: string): Promise<CreateEmailResponse | SendOtpError> {
   console.log("Sending OTP email to:", toEmail); // Log the recipient
   try {
     // Construct the verification link
-    const verificationLink = `${VERIFICATION_LINK_BASE}?email=${encodeURIComponent(
-      toEmail
-    )}&otp=${otp}`;
+    const verificationLink = `${VERIFICATION_LINK_BASE}?userId=${userId}&otp=${otp}`;
 
     // Construct email HTML content
     const emailContent = `
@@ -63,8 +62,8 @@ export async function SendOTPInMail(otp: string, toEmail: string): Promise<Creat
 
     // Send the email using the transporter and return the result
     const data: CreateEmailResponse = await Transporter(mailOptions);
-    // Log success (Resend response object might contain details, but ID is not guaranteed)
-    console.log(`OTP Email sent successfully via Resend.`);
+    // Log the entire Resend response for debugging
+    console.log(`OTP Email sent successfully via Resend. Response:`, data);
     return data; // Return the successful Resend response
 
   } catch (error: unknown) {

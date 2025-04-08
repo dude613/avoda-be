@@ -139,7 +139,7 @@ export async function Login(req: LoginRequest, res: UserResponse): Promise<void>
 
     // Prepare user data for response (omit sensitive fields)
     const responseUser: LoginResponseUser = {
-      id: user.id,
+      id: parseInt(user.id),
       email: user.email,
       name: user.userName, // Use userName field from schema
       picture: user.picture,
@@ -280,7 +280,7 @@ export const loginWithGoogle = async (req: LoginWithGoogleRequest, res: UserResp
 
     // Prepare user data for response
     const responseUser: LoginResponseUser = {
-      id: user.id,
+      id: parseInt(user.id),
       email: user.email,
       name: user.userName,
       picture: user.picture,

@@ -33,6 +33,10 @@ export const Transporter = async (params) => {
             // Throw an error using the message from the Resend error object
             throw new Error(`Resend API Error: ${result.error.message}`);
         }
+        if (!result.data?.id) {
+            console.error("Resend API did not return an id:", result);
+            throw new Error(`Resend API Error: No id returned`);
+        }
         // Return the successful response object
         return result;
     }

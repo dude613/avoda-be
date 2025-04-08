@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "otps" ALTER COLUMN "userId" SET DATA TYPE TEXT;

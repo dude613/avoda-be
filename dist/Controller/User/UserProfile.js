@@ -14,17 +14,13 @@ const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/gif"];
 export async function GetProfileData(req, res) {
     try {
         const { userId: userIdString } = req.params;
+        console.log(req.params, "gettt");
         if (!userIdString) { // Should be caught by route definition, but good practice
             res.status(400).send({ success: false, error: "User ID parameter is required." });
             return;
         }
-        const userId = parseInt(userIdString, 10);
-        if (isNaN(userId)) {
-            res.status(400).send({ success: false, error: "Invalid user ID format in URL." });
-            return;
-        }
         const user = await prisma.user.findUnique({
-            where: { id: userId },
+            where: { id: userIdString },
             // Optionally select only needed fields
             // select: { id: true, email: true, userName: true, picture: true, role: true, createdAt: true, verified: true, lastLoginAt: true }
         });
@@ -56,12 +52,6 @@ export async function UpdateProfileData(req, res) {
         }
         // Destructure validated body data
         const { userId: userIdString, name, email, role } = req.body;
-        // userId is validated by the 'validate' function, but parse again here
-        const userId = parseInt(userIdString, 10);
-        if (isNaN(userId)) { // Should not happen if validation passed, but defensive check
-            res.status(400).send({ success: false, error: "Invalid user ID format." });
-            return;
-        }
         // Prepare data for update, only including provided fields
         const updateData = {};
         if (name !== undefined)
@@ -76,7 +66,7 @@ export async function UpdateProfileData(req, res) {
             return;
         }
         const updatedUser = await prisma.user.update({
-            where: { id: userId },
+            where: { id: userIdString },
             data: updateData,
         });
         // Return only the updated fields (or a standard user profile object)
@@ -120,11 +110,6 @@ export async function UpdateProfilePicture(req, res) {
             res.status(400).send({ success: false, error: "User ID is required in the request body." });
             return;
         }
-        const userId = parseInt(userIdString, 10);
-        if (isNaN(userId)) {
-            res.status(400).send({ success: false, error: "Invalid user ID format." });
-            return;
-        }
         // Access uploaded file using the correct structure (assuming 'images' fieldname from Multer setup)
         let uploadedFile = undefined;
         // Check if req.files exists and is the object form (not an array)
@@ -150,7 +135,7 @@ export async function UpdateProfilePicture(req, res) {
         // Update user's picture path in the database
         try {
             await prisma.user.update({
-                where: { id: userId },
+                where: { id: userIdString },
                 data: { picture: imagePath },
             });
         }
@@ -196,11 +181,6 @@ const validate = (req, res) => {
         res.status(400).send({ success: false, error: "User ID is required in the request body." });
         return false;
     }
-    const userIdNum = parseInt(userIdString, 10);
-    if (isNaN(userIdNum)) {
-        res.status(400).send({ success: false, error: "Invalid user ID format in body." });
-        return false;
-    }
     // Validate email format only if email is provided
     if (email && !EMAIL_REGEX.test(email)) {
         res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -239,13 +219,9 @@ export async function GetAllUsers(req, res) {
             return;
         }
         const requestingUserId = parseInt(requestingUserIdString, 10);
-        if (isNaN(requestingUserId)) {
-            res.status(400).send({ success: false, error: "Invalid requesting user ID format." });
-            return;
-        }
         // Check if the requesting user exists (basic authorization check)
         const requestingUser = await prisma.user.findUnique({
-            where: { id: requestingUserId },
+            where: { id: requestingUserIdString },
         });
         if (!requestingUser) {
             // Use 403 Forbidden if the user exists but isn't authorized,

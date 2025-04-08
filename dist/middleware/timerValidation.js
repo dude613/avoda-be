@@ -11,12 +11,13 @@ export const validateConcurrentTimers = async (req, res, next) => {
                 message: "Authentication required: User context missing.",
             });
         }
-        // req.user.id should already be a number based on Prisma schema, no need for parseInt
         const userId = req.user.id;
         // Check if user has any active timers
         const activeTimer = await prisma.timer.findFirst({
             where: {
-                user: userId, // Corrected field name based on schema
+                user: {
+                    id: userId,
+                },
                 isActive: true,
             },
         });

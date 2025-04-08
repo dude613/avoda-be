@@ -3,18 +3,18 @@ import { Server as SocketIOServer, Socket, Namespace } from "socket.io"; // Impo
 
 // Define a type for the decoded JWT payload expected by this middleware
 interface SocketTokenPayload extends JwtPayload {
-  userId: number; // Assuming userId is stored in the token as a number
+  userId: string; // Assuming userId is stored in the token as a string
   // Add other properties if included in your token payload
 }
 
 // Extend the Socket type to include our custom userId property
 interface AuthenticatedSocket extends Socket {
-    userId?: number; // Add userId property
+    userId?: string; // Add userId property
 }
 
 // Map to store active connections by userId (Socket ID might be better, but using userId as per original)
 // Using AuthenticatedSocket type for the value
-const userConnections = new Map<number, AuthenticatedSocket[]>();
+const userConnections = new Map<string, AuthenticatedSocket[]>();
 
 /**
  * Sets up timer-specific WebSocket functionality using the existing Socket.io instance.
@@ -50,7 +50,7 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
       const decoded = jwt.verify(token, jwtSecret) as SocketTokenPayload;
 
       // Validate decoded payload
-      if (!decoded.userId || typeof decoded.userId !== 'number') {
+      if (!decoded.userId || typeof decoded.userId !== 'string') {
           console.log("Timer WS Auth: Invalid token payload (missing or invalid userId).");
           return next(new Error("Authentication failed: Invalid token payload"));
       }
@@ -118,7 +118,7 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
  * @param event - The event name (string) to emit.
  * @param data - The data payload (any type) to send with the event.
  */
-export const broadcastToUser = (userId: number, event: string, data: any): void => {
+export const broadcastToUser = (userId: string, event: string, data: any): void => {
   if (userConnections.has(userId)) {
     const connections = userConnections.get(userId);
     if (connections && connections.length > 0) {

@@ -142,22 +142,20 @@ export async function Register(req: RegisterRequest, res: UserResponse): Promise
     });
 
     // Send OTP email
-    const otpResponse = await typedSendOTPInMail(otp, email);
+    const otpResponse = await typedSendOTPInMail(otp, email, user.id);
 
     // Check response from mailer: Success is indicated by presence of 'id' from Resend
-    if ('id' in otpResponse) { // Check if it's the success response { id: string }
+    if (otpResponse?.data?.id) {
       res.status(isNewUser ? 201 : 200).send({ // 201 for new user, 200 if re-sending OTP
         success: true,
         message: USER_SEND_OTP,
-        // data: otpResponse.data // Avoid sending back mailer internal data
       });
     } else {
-      // Log the specific mailer error if available (it's the error response { success: false, error: string })
-      console.error("Failed to send OTP mail:", otpResponse.error);
+      // Log the specific mailer error if available
+      console.error("Failed to send OTP mail:", otpResponse);
       res.status(500).send({
         success: false,
         message: OTP_NOT_SENT,
-        // error: otpResponse.error // Avoid sending back internal error details
       });
     }
 
@@ -250,7 +248,7 @@ export const registerWithGoogle = async (req: RegisterWithGoogleRequest, res: Us
     // Prepare response data
     const responseData: RegisterWithGoogleSuccessData = {
       user: {
-        id: user.id,
+        id: parseInt(user.id),
         email: user.email,
         userName: user.userName,
         picture: user.picture,
@@ -413,9 +411,9 @@ export async function ResetPassword(req: ResetPasswordRequest, res: UserResponse
     });
 
     // Send OTP email and check response
-    const otpResetResponse = await typedSendOTPInMail(otp, email);
+    const otpResetResponse = await typedSendOTPInMail(otp, email, user.id);
     if (!('id' in otpResetResponse)) { // Check for failure
-        console.error("Failed to send OTP mail after password reset:", otpResetResponse.error);
+        console.error("Failed to send OTP mail after password reset:", otpResetResponse?.error);
         // Decide how to handle: maybe still return success for password reset but log OTP failure?
         // Original code didn't check the response here, proceeding with success regardless.
     }

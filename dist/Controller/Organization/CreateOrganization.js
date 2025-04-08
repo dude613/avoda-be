@@ -15,7 +15,7 @@ export async function CreateOrganization(req, res) {
         };
         const newOrg = await prisma.organization.create({
             data: {
-                userId: userIdInt,
+                userId: userId,
                 name: organizationName,
                 industry: industry,
                 size: companySize ? sizeMapping[companySize] : null,
@@ -110,12 +110,7 @@ export async function UpdateOrganization(req, res) {
 }
 export async function GetOrganization(req, res) {
     try {
-        const userId = parseInt(req.params.userId || "", 10);
-        if (isNaN(userId)) {
-            return res
-                .status(400)
-                .send({ success: false, error: "Invalid User ID format!" });
-        }
+        const userId = req.params.userId || "";
         if (!userId) {
             return res
                 .status(404)
@@ -171,7 +166,7 @@ const validate = async (req, res) => {
         }
         const user = await prisma.user.findUnique({
             where: {
-                id: userIdInt,
+                id: userId,
             },
         });
         if (!user) {

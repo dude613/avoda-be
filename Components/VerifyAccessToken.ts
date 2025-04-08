@@ -8,7 +8,7 @@ dotenv.config();
 
 // Define a type for the decoded JWT payload expected by this middleware
 interface AccessTokenPayload extends JwtPayload {
-  userId: number; // Assuming userId is stored in the token
+  userId: string; // Assuming userId is stored in the token
   email: string;
   // Add other properties if included in your access token payload
 }
@@ -75,7 +75,7 @@ export const verifyAccessToken = async (
 // Define a type for the user object passed to token generation functions
 // Using PrismaUser directly might expose too much, define a minimal type
 interface TokenUserPayload {
-    id: number;
+    id: string;
     email: string;
     // Add other fields needed in the token payload (e.g., role)
 }

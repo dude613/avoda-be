@@ -30,7 +30,7 @@ export const setupTimerWebSockets = (io) => {
             // Verify JWT token
             const decoded = jwt.verify(token, jwtSecret);
             // Validate decoded payload
-            if (!decoded.userId || typeof decoded.userId !== 'number') {
+            if (!decoded.userId || typeof decoded.userId !== 'string') {
                 console.log("Timer WS Auth: Invalid token payload (missing or invalid userId).");
                 return next(new Error("Authentication failed: Invalid token payload"));
             }

@@ -1,11 +1,10 @@
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 dotenv.config();
-import { OAuth2Client } from "google-auth-library"; // Import Credentials type
-import { generateAccessToken, generateRefreshToken, } from "../../Components/VerifyAccessToken.js"; // Assuming these return string or handle errors
-import { userContent } from "../../Constants/UserConstants.js"; // Assuming JS is compatible
+import { OAuth2Client } from "google-auth-library";
+import { generateAccessToken, generateRefreshToken, } from "../../Components/VerifyAccessToken.js";
+import { userContent } from "../../Constants/UserConstants.js";
 import { prisma } from "../../Components/ConnectDatabase.js";
-// Destructure constants with defaults
 const { errors: { EMAIL_NOT_FOUND_ERROR = "Email address not found.", EMAIL_REQUIRED_ERROR = "Email address is required.", INVALID_EMAIL_FORMAT_ERROR = "Invalid email format.", PASSWORD_REQUIRED_INCORRECT = "Incorrect password.", GENERIC_ERROR_MESSAGE = "An internal server error occurred." } = {}, success: { USER_LOGIN_SUCCESS = "User logged in successfully." } = {}, messages: { PASSWORD_REQUIRED_ERROR = "Password is required.", PASSWORD_COMPLEXITY_ERROR = "Password does not meet complexity requirements." // Used in validation
  } = {}, validations: { EMAIL: EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/, PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/ // Example complexity
  } = {} } = userContent || {};

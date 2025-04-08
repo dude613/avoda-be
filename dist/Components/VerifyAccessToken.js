@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import { prisma } from "./ConnectDatabase.js"; // Keep .js extension
+import { prisma } from "./ConnectDatabase.js";
+import * as Sentry from "@sentry/node";
+import { error } from "console";
 dotenv.config();
 /**
  * Middleware to verify JWT access token and attach the full user object to req.user.
@@ -9,13 +11,13 @@ dotenv.config();
 export const verifyAccessToken = async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
     if (!token) {
-        // Use 401 Unauthorized for missing token
         res.status(401).send({ success: false, error: "Access denied, no token provided!" });
         return;
     }
     const jwtSecret = process.env.JWT_SECRET_KEY;
     if (!jwtSecret) {
         console.error("JWT_SECRET_KEY is not defined");
+        Sentry.captureException(error);
         res.status(500).send({ success: false, error: "Server configuration error." });
         return;
     }
@@ -31,11 +33,9 @@ export const verifyAccessToken = async (req, res, next) => {
             where: { id: decoded.userId }, // Use userId from token
         });
         if (!user) {
-            // User associated with valid token not found
             res.status(401).send({ success: false, error: "Authentication failed: User not found." });
             return;
         }
-        // Attach the full Prisma user object to the request (relies on global augmentation)
         req.user = user;
         next();
     }
@@ -48,7 +48,6 @@ export const verifyAccessToken = async (req, res, next) => {
         else if (error instanceof jwt.JsonWebTokenError) {
             message = `Invalid token: ${error.message}`;
         }
-        // Use 401 Unauthorized for token errors
         res.status(401).send({ success: false, error: message });
     }
 };

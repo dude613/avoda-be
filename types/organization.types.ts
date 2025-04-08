@@ -146,10 +146,7 @@ export interface DeleteUserBody {
 }
 
 export interface EditTeamMemberBody {
-    members: EditMemberInput; // Assuming the body structure is { members: { ...details... } }
-                               // If it's just { ...details... }, adjust accordingly.
-                               // Based on the JS code `const { members } = req.body; const { id, ... } = members;`
-                               // it seems the structure is indeed { members: { ... } }
+    members: EditMemberInput; // Object containing a single member's details
 }
 
 // --- Request Params Interface (Team Member) ---

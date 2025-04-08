@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-// Import controller functions - Add .js extension for NodeNext compatibility
+// Import controller functions
 import {
     CreateOrganization,
     GetOrganization,
@@ -11,18 +11,19 @@ import {
     GetAllTeamMember,
     EditTeamMember
 } from '../../Controller/Organization/AddTeamMember.js';
-// Import JS middleware - Keep .js extension
-import { verifyAccessToken } from '../../Components/VerifyAccessToken.js'; // Keep .js extension
+
+// Import middleware
+import { verifyAccessToken } from '../../Components/VerifyAccessToken.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+
 
 export const OrgRoute: Router = express.Router();
 
-// Assuming verifyAccessToken is compatible Express middleware
-// Assuming Controller functions are compatible Express route handlers
-
-OrgRoute.post("/create-organization", verifyAccessToken, CreateOrganization);
-OrgRoute.post("/skip-organization", verifyAccessToken, SkipOrganization);
-OrgRoute.get("/organization-list/:userId", verifyAccessToken, GetOrganization);
-OrgRoute.post("/add-teammember", verifyAccessToken, AddTeamMember);
-OrgRoute.get("/list-teammember/:userId", verifyAccessToken, GetAllTeamMember);
-OrgRoute.post("/user-archived", verifyAccessToken, DeleteUser);
-OrgRoute.put("/edit-teammember", verifyAccessToken, EditTeamMember);
+// Wrap all async controller functions with asyncHandler
+OrgRoute.post("/create-organization", verifyAccessToken, asyncHandler(CreateOrganization));
+OrgRoute.post("/skip-organization", verifyAccessToken, asyncHandler(SkipOrganization));
+OrgRoute.get("/organization-list/:userId", verifyAccessToken, asyncHandler(GetOrganization));
+OrgRoute.post("/add-teammember", verifyAccessToken, asyncHandler(AddTeamMember));
+OrgRoute.get("/list-teammember/:userId", verifyAccessToken, asyncHandler(GetAllTeamMember));
+OrgRoute.post("/user-archived", verifyAccessToken, asyncHandler(DeleteUser));
+OrgRoute.put("/edit-teammember", verifyAccessToken, asyncHandler(EditTeamMember));

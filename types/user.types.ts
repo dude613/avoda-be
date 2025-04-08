@@ -140,7 +140,7 @@ export type ValidateRegisterFunction = (req: RegisterRequest, res: UserResponse)
 
 // --- Type for SendOTPInMail ---
 // Using 'any' for now as the exact return type from SendOTPInMail (combining Resend and custom errors) is complex.
-export type SendOtpFunction = (otp: string, email: string) => Promise<any>;
+export type SendOtpFunction = (otp: string, email: string, userId: string) => Promise<any>;
 
 
 // --- User Profile Types ---
@@ -212,7 +212,7 @@ export interface VerifyOtpSuccessResponse {
     success: true;
     message: string;
     user: { // Define the user subset returned
-        id: number;
+        id: string;
         email: string;
         verified: boolean; // Should be true after verification
         role: string | null;

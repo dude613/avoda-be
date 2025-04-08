@@ -138,14 +138,9 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
     });
 
     // Validate OTP value (check if it's a number string is done by middleware)
-    const otpNumber = parseInt(otp, 10);
-    if (isNaN(otpNumber)) { // Should not happen if middleware is used, but defensive check
-        res.status(400).send({ success: false, error: INVALID_OTP_FORMAT_ERROR });
-        return;
-    }
     //FIXME The OTP expiration check happens after the OTP value check. If the OTP is expired but matches, it will return an incorrect error message. Reorder the checks to validate expiration first.
     // Check if OTP record exists, matches, and is not expired
-    if (!otpRecord || otpRecord.otp !== otpNumber) {
+    if (!otpRecord) {
       res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }
@@ -153,6 +148,11 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
       // OTP expired, delete it
       await prisma.otp.delete({ where: { id: otpRecord.id } }); // Delete by unique id
       res.status(400).send({ success: false, error: USER_OTP_EXPIRE });
+      return;
+    }
+    // Now check if OTP matches
+    if (otpRecord.otp !== otp) {
+      res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }
 
@@ -232,7 +232,7 @@ export async function ResendOtp(req: ResendOtpRequest, res: UserResponse): Promi
         await tx.otp.create({
             data: {
                 userId: user.id,
-                otp: parseInt(newOtp, 10),
+                otp: newOtp,
                 expiresAt: otpExpiration,
             }
         });
@@ -240,11 +240,11 @@ export async function ResendOtp(req: ResendOtpRequest, res: UserResponse): Promi
 
     // Send the new OTP via email
     // Send the new OTP via email
-    const sendOTPResponse: any = await typedSendOTPInMail(newOtp, email); // Response is 'any'
+    const sendOTPResponse: any = await typedSendOTPInMail(newOtp, email, user.id);
 
     // Check mailer response dynamically
     // Check for Resend success ({ id: string }) or custom error ({ success: false, error: string })
-    if (sendOTPResponse && sendOTPResponse.id) { // Success case (has 'id')
+    if (sendOTPResponse && sendOTPResponse.id) {
         res.status(200).send({
             success: true,
             message: USER_SEND_OTP,

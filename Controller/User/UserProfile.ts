@@ -48,20 +48,15 @@ const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/gif"];
 export async function GetProfileData(req: GetProfileDataRequest, res: UserResponse): Promise<void> {
   try {
     const { userId: userIdString } = req.params;
+    console.log(req.params, "gettt");
 
     if (!userIdString) { // Should be caught by route definition, but good practice
         res.status(400).send({ success: false, error: "User ID parameter is required." });
         return;
     }
 
-    const userId = parseInt(userIdString, 10);
-    if (isNaN(userId)) {
-      res.status(400).send({ success: false, error: "Invalid user ID format in URL." });
-      return;
-    }
-
     const user: PrismaUser | null = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userIdString },
       // Optionally select only needed fields
       // select: { id: true, email: true, userName: true, picture: true, role: true, createdAt: true, verified: true, lastLoginAt: true }
     });
@@ -98,13 +93,6 @@ export async function UpdateProfileData(req: UpdateProfileDataRequest, res: User
     // Destructure validated body data
     const { userId: userIdString, name, email, role } = req.body;
 
-    // userId is validated by the 'validate' function, but parse again here
-    const userId = parseInt(userIdString, 10);
-     if (isNaN(userId)) { // Should not happen if validation passed, but defensive check
-      res.status(400).send({ success: false, error: "Invalid user ID format." });
-      return;
-    }
-
     // Prepare data for update, only including provided fields
     const updateData: { userName?: string; email?: string; role?: UserRole } = {};
     if (name !== undefined) updateData.userName = name;
@@ -118,7 +106,7 @@ export async function UpdateProfileData(req: UpdateProfileDataRequest, res: User
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
+      where: { id: userIdString },
       data: updateData,
     });
 
@@ -163,19 +151,23 @@ export async function UpdateProfilePicture(req: UpdateProfilePictureRequest, res
       res.status(400).send({ success: false, error: "User ID is required in the request body." });
       return;
     }
-    const userId = parseInt(userIdString, 10);
-    if (isNaN(userId)) {
-      res.status(400).send({ success: false, error: "Invalid user ID format." });
-      return;
-    }
-
     // Access uploaded file using the correct structure (assuming 'images' fieldname from Multer setup)
     let uploadedFile: MulterFile | undefined = undefined;
 
-    // Check if req.files exists and is the object form (not an array)
-    if (req.files && !Array.isArray(req.files) && req.files['images']) {
-        // Access the first file associated with the 'images' field
-        uploadedFile = req.files['images'][0];
+    // Check for single file upload (req.file) first
+    if (req.file) {
+        uploadedFile = req.file;
+    } 
+    // Then check for multiple files configuration
+    else if (req.files) {
+        // If req.files is an array
+        if (Array.isArray(req.files) && req.files.length > 0) {
+            uploadedFile = req.files[0];
+        } 
+        // If req.files is an object with field arrays
+        else if (!Array.isArray(req.files) && req.files['images'] && req.files['images'].length > 0) {
+            uploadedFile = req.files['images'][0];
+        }
     }
 
     if (!uploadedFile) {
@@ -199,7 +191,7 @@ export async function UpdateProfilePicture(req: UpdateProfilePictureRequest, res
     // Update user's picture path in the database
     try {
       await prisma.user.update({
-        where: { id: userId },
+        where: { id: userIdString },
         data: { picture: imagePath },
       });
     } catch (dbError: unknown) {
@@ -246,12 +238,6 @@ const validate: ValidateProfileUpdateFunction = (req, res) => {
     res.status(400).send({ success: false, error: "User ID is required in the request body." });
     return false;
   }
-  const userIdNum = parseInt(userIdString, 10);
-  if (isNaN(userIdNum)) {
-     res.status(400).send({ success: false, error: "Invalid user ID format in body." });
-     return false;
-  }
-
   // Validate email format only if email is provided
   if (email && !EMAIL_REGEX.test(email)) {
     res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
@@ -295,14 +281,10 @@ export async function GetAllUsers(req: GetAllUsersRequest, res: UserResponse): P
       return;
     }
     const requestingUserId = parseInt(requestingUserIdString, 10);
-    if (isNaN(requestingUserId)) {
-        res.status(400).send({ success: false, error: "Invalid requesting user ID format." });
-        return;
-    }
 
     // Check if the requesting user exists (basic authorization check)
     const requestingUser = await prisma.user.findUnique({
-      where: { id: requestingUserId },
+      where: { id: requestingUserIdString },
     });
     if (!requestingUser) {
       // Use 403 Forbidden if the user exists but isn't authorized,

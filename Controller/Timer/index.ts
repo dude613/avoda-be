@@ -1,139 +1,110 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
-import {
-    StartTimerRequest,
-    StopTimerRequest,
-    GetActiveTimerRequest,
-    GetUserTimersRequest,
-    TimerResponse,
-    BroadcastFunction // Import the placeholder type
-} from "../../types/timer.types.js"; // Adjust path/extension if needed
-import { Timer } from '@prisma/client'; // Import Prisma's Timer type
+import { Request, Response } from "express";
+import { v4 as uuidv4 } from 'uuid';
 
-// Type assertion for the imported broadcast function (if needed, or define properly)
-const typedBroadcastToUser: BroadcastFunction = broadcastToUser;
+// Extend Request to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        [key: string]: any;
+      };
+    }
+  }
+}
 
-export const startTimer = async (req: StartTimerRequest, res: TimerResponse): Promise<void> => {
+export const startTimer = async (req: Request, res: Response) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const { task, project, client } = req.body;
-
-    // Validate required fields (task is required by StartTimerBody type)
-    // The check `if (!task)` is redundant if types are enforced by middleware/validation layer
-    // but kept here for robustness matching original code.
     if (!task) {
-        res.status(400).json({ success: false, message: "Task field is required" });
-        return;
+      return res.status(400).json({ success: false, message: "Task field is required" });
     }
-
-    // Safely access and parse user ID from authenticated request
-    if (!req.user?.id) {
-        res.status(401).json({ success: false, message: "Authentication required (user ID missing)" });
-        return;
-    }
-    const userId = parseInt(req.user.id, 10);
-    if (isNaN(userId)) {
-      res.status(400).json({ success: false, message: "Invalid user ID format in token" });
-      return;
-    }
-
-    // Check for existing active timer
+    
+    // Double-check for active timers
     const existingActiveTimer = await prisma.timer.findFirst({
       where: {
-        user: userId, // Use the parsed numeric userId
+        userId: userId, // Changed from user to userId
         isActive: true,
       },
     });
+    
     if (existingActiveTimer) {
-      res.status(409).json({
+      return res.status(409).json({
         success: false,
         message: "You already have an active timer. Please stop the current timer before starting a new one.",
         activeTimer: existingActiveTimer,
       });
-      return;
     }
-
-    // Create new timer
-    const newTimer: Timer = await prisma.timer.create({
+    
+    // Create a new timer
+    const newTimer = await prisma.timer.create({
       data: {
-        user: userId, // Use parsed numeric userId
+        userId: userId, // Changed from user to userId
         task,
-        project: project || null, // Use null if optional and not provided
-        client: client || null,  // Use null if optional and not provided
+        project,
+        client,
         startTime: new Date(),
         isActive: true,
-        // endTime and duration will be null/default upon creation
       },
     });
 
-    // Notify client via WebSocket - Use the original string ID from the request
-    typedBroadcastToUser(req.user.id, "timer:started", newTimer);
+    // Notify client via WebSocket
+    broadcastToUser(userId, "timer:started", newTimer);
 
     res.status(201).json({
       success: true,
       message: "Timer started successfully",
       timer: newTimer,
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error starting timer:", errorMessage);
+  } catch (error: any) {
+    console.error("Error starting timer:", error);
     res.status(500).json({
       success: false,
       message: "Failed to start timer",
-      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      error: error.message,
     });
   }
 };
 
-export const stopTimer = async (req: StopTimerRequest, res: TimerResponse): Promise<void> => {
+export const stopTimer = async (req: Request, res: Response) => {
   try {
-    const { timerId: timerIdString } = req.params;
-
-    // Safely access and parse user ID
-    if (!req.user?.id) {
-        res.status(401).json({ success: false, message: "Authentication required (user ID missing)" });
-        return;
-    }
-    const userId = parseInt(req.user.id, 10);
-    if (isNaN(userId)) {
-      res.status(400).json({ success: false, message: "Invalid user ID format in token" });
-      return;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Parse timer ID
-    const parsedTimerId = parseInt(timerIdString, 10);
-    if (isNaN(parsedTimerId)) {
-      res.status(400).json({ success: false, message: "Invalid timer ID format in URL parameter" });
-      return;
-    }
-
-    // Find the active timer for this user
+    const { timerId } = req.params;
+    
+    // Find the active timer
     const timer = await prisma.timer.findFirst({
       where: {
-        id: parsedTimerId,
-        user: userId, // Ensure the timer belongs to the authenticated user
+        id: timerId,
+        userId: userId, // Changed from user to userId
         isActive: true,
       },
     });
 
     if (!timer) {
-      // Could be timer doesn't exist, doesn't belong to user, or isn't active
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
-        message: "No active timer found with the provided ID for this user",
+        message: "No active timer found with the provided ID",
       });
-      return;
     }
 
     // Calculate duration and update timer
     const endTime = new Date();
-    // Ensure startTime is a Date object before getTime()
-    const startTime = timer.startTime instanceof Date ? timer.startTime : new Date(timer.startTime);
-    const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000); // Duration in seconds
+    const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
 
-    const updatedTimer: Timer = await prisma.timer.update({
+    const updatedTimer = await prisma.timer.update({
       where: {
-        id: parsedTimerId, // Use the parsed ID
+        id: timerId,
       },
       data: {
         endTime: endTime,
@@ -142,123 +113,103 @@ export const stopTimer = async (req: StopTimerRequest, res: TimerResponse): Prom
       },
     });
 
-    // Notify client via WebSocket - Use the original string ID from the request
-    typedBroadcastToUser(req.user.id, "timer:stopped", updatedTimer);
+    // Notify client via WebSocket
+    broadcastToUser(userId, "timer:stopped", updatedTimer);
 
     res.status(200).json({
       success: true,
       message: "Timer stopped successfully",
       timer: updatedTimer,
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error stopping timer:", errorMessage);
-    // Check for Prisma P2025 if record not found during update (though findFirst should prevent this)
+  } catch (error: any) {
+    console.error("Error stopping timer:", error);
     res.status(500).json({
       success: false,
-      message: "An error occurred while stopping the timer",
-      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      message: "An error occurred in stopping timer",
+      error: error.message,
     });
   }
 };
 
-export const getActiveTimer = async (req: GetActiveTimerRequest, res: TimerResponse): Promise<void> => {
+export const getActiveTimer = async (req: Request, res: Response) => {
   try {
-    // Safely access and parse user ID
-    if (!req.user?.id) {
-        res.status(401).json({ success: false, message: "Authentication required (user ID missing)" });
-        return;
-    }
-    const userId = parseInt(req.user.id, 10);
-    if (isNaN(userId)) {
-      res.status(400).json({ success: false, message: "Invalid user ID format in token" });
-      return;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const activeTimer = await prisma.timer.findFirst({
       where: {
-        user: userId,
+        userId: userId, // Changed from user to userId
         isActive: true,
       },
     });
 
     res.status(200).json({
       success: true,
-      hasActiveTimer: !!activeTimer, // Convert timer object (or null) to boolean
-      timer: activeTimer, // Send the timer object or null
+      hasActiveTimer: !!activeTimer,
+      timer: activeTimer,
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error fetching active timer:", errorMessage);
+  } catch (error: any) {
+    console.error("Error fetching active timer:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch active timer",
-      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      error: error.message,
     });
   }
 };
 
-export const getUserTimers = async (req: GetUserTimersRequest, res: TimerResponse): Promise<void> => {
+export const getUserTimers = async (req: Request, res: Response) => {
   try {
-    // Safely access and parse user ID
-    if (!req.user?.id) {
-        res.status(401).json({ success: false, message: "Authentication required (user ID missing)" });
-        return;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    const userId = parseInt(req.user.id, 10);
-    if (isNaN(userId)) {
-      res.status(400).json({ success: false, message: "Invalid user ID format in token" });
-      return;
-    }
+    
+    const { page = 1, limit = 10 } = req.query;
 
-    // Get and validate pagination parameters from query
-    const { page = '1', limit = '10' } = req.query; // Default to strings
-
-    const parsedPage = parseInt(page, 10);
-    if (isNaN(parsedPage) || parsedPage < 1) {
-      res.status(400).json({ success: false, message: "Invalid page number (must be 1 or greater)" });
-      return;
+    const parsedPage = parseInt(page as string);
+    if (isNaN(parsedPage)) {
+      return res.status(400).json({ success: false, message: "Invalid page number" });
     }
 
-    const parsedLimit = parseInt(limit, 10);
-    if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) { // Add upper bound for limit
-      res.status(400).json({ success: false, message: "Invalid limit number (must be between 1 and 100)" });
-      return;
+    const parsedLimit = parseInt(limit as string);
+    if (isNaN(parsedLimit)) {
+      return res.status(400).json({ success: false, message: "Invalid limit number" });
     }
 
-    // Calculate skip value for pagination
-    const skip = (parsedPage - 1) * parsedLimit;
+    const timers = await prisma.timer.findMany({
+      where: {
+        userId: userId, // Changed from user to userId
+      },
+      orderBy: [
+        {
+          startTime: 'desc',
+        },
+      ],
+      skip: ((parsedPage - 1) * parsedLimit),
+      take: parsedLimit,
+    });
 
-    // Fetch timers and total count concurrently
-    const [timers, count] = await Promise.all([
-        prisma.timer.findMany({
-            where: { user: userId },
-            orderBy: { startTime: 'desc' },
-            skip: skip,
-            take: parsedLimit,
-        }),
-        prisma.timer.count({
-            where: { user: userId },
-        })
-    ]);
+    const count = await prisma.timer.count({
+      where: {
+        userId: userId, // Changed from user to userId
+      },
+    });
 
     res.status(200).json({
       success: true,
       timers,
       totalPages: Math.ceil(count / parsedLimit),
       currentPage: parsedPage,
-      totalTimers: count
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error fetching user timers:", errorMessage);
+  } catch (error: any) {
+    console.error("Error fetching user timers:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch timers",
-      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      error: error.message,
     });
   }
 };

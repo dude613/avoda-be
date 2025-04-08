@@ -1,17 +1,16 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
-import { prisma } from "./ConnectDatabase.js"; // Keep .js extension
-import { User as PrismaUser } from "@prisma/client"; // Import Prisma User type
+import { prisma } from "./ConnectDatabase.js"; 
+import { User as PrismaUser } from "@prisma/client"; 
 import * as Sentry from "@sentry/node";
 import { error } from "console";
 dotenv.config();
 
-// Define a type for the decoded JWT payload expected by this middleware
 interface AccessTokenPayload extends JwtPayload {
-  userId: number; // Assuming userId is stored in the token
+  userId: string; 
   email: string;
-  // Add other properties if included in your access token payload
+  
 }
 
 /**
@@ -22,16 +21,16 @@ export const verifyAccessToken = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => { // Return Promise<void> for async middleware
+): Promise<void> => { 
   const token = req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
-    // Use 401 Unauthorized for missing token
     res.status(401).send({ success: false, error: "Access denied, no token provided!" });
     return;
   }
 
   const jwtSecret = process.env.JWT_SECRET_KEY;
   if (!jwtSecret) {
+    console.error("JWT_SECRET_KEY is not defined");
     Sentry.captureException(error);
     res.status(500).send({ success: false, error: "Server configuration error." });
     return;
@@ -52,13 +51,24 @@ export const verifyAccessToken = async (
     });
 
     if (!user) {
-      // User associated with valid token not found
       res.status(401).send({ success: false, error: "Authentication failed: User not found." });
       return;
     }
 
-    // Attach the full Prisma user object to the request (relies on global augmentation)
-    req.user = user;
+    // Create a sanitized user object with only necessary fields
+    const sanitizedUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      userName: user.userName,
+      picture: user.picture,
+      verified: user.verified,
+      lastLoginAt: user.lastLoginAt
+      // Add other non-sensitive fields as needed
+    };
+
+    // Attach the sanitized user object to the request
+    req.user = sanitizedUser;
     next();
   } catch (error: any) {
     console.error("Token verification error:", error.message);
@@ -68,15 +78,12 @@ export const verifyAccessToken = async (
     } else if (error instanceof jwt.JsonWebTokenError) {
         message = `Invalid token: ${error.message}`;
     }
-    // Use 401 Unauthorized for token errors
     res.status(401).send({ success: false, error: message });
   }
 };
 
-// Define a type for the user object passed to token generation functions
-// Using PrismaUser directly might expose too much, define a minimal type
 interface TokenUserPayload {
-    id: number;
+    id: string;
     email: string;
     // Add other fields needed in the token payload (e.g., role)
 }

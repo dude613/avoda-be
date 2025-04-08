@@ -1,25 +1,26 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
-import { OAuth2Client, Credentials } from "google-auth-library"; // Import Credentials type
+import { OAuth2Client, Credentials } from "google-auth-library";
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../../Components/VerifyAccessToken.js"; // Assuming these return string or handle errors
-import { userContent } from "../../Constants/UserConstants.js"; // Assuming JS is compatible
+} from "../../Components/VerifyAccessToken.js";
+import { userContent } from "../../Constants/UserConstants.js";
 import { prisma } from "../../Components/ConnectDatabase.js";
 import {
     LoginRequest,
     LoginWithGoogleRequest,
     UserResponse,
     ValidateLoginFunction,
-    LoginSuccessResponse, // Import success response type
-    LoginResponseUser, // Import user structure for response
-    GooglePayload // Import Google payload structure
-} from "../../types/user.types.js"; // Adjust path/extension if needed
-import { User as PrismaUser } from '@prisma/client'; // Import Prisma User type
+    LoginSuccessResponse, 
+    LoginResponseUser, 
+    GooglePayload 
+} from "../../types/user.types.js"; 
+import { User as PrismaUser } from '@prisma/client'; 
 
-// Destructure constants with defaults
+
 const {
   errors: {
     EMAIL_NOT_FOUND_ERROR = "Email address not found.",
@@ -101,7 +102,7 @@ export async function Login(req: LoginRequest, res: UserResponse): Promise<void>
     }
 
     // Generate OTP (consider if OTP is needed for standard login)
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Update user with refreshToken, OTP, and lastLoginAt
@@ -139,7 +140,7 @@ export async function Login(req: LoginRequest, res: UserResponse): Promise<void>
 
     // Prepare user data for response (omit sensitive fields)
     const responseUser: LoginResponseUser = {
-      id: user.id,
+      id: parseInt(user.id),
       email: user.email,
       name: user.userName, // Use userName field from schema
       picture: user.picture,
@@ -280,7 +281,7 @@ export const loginWithGoogle = async (req: LoginWithGoogleRequest, res: UserResp
 
     // Prepare user data for response
     const responseUser: LoginResponseUser = {
-      id: user.id,
+      id: parseInt(user.id),
       email: user.email,
       name: user.userName,
       picture: user.picture,

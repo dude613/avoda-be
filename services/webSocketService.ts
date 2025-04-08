@@ -1,20 +1,20 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { Server as SocketIOServer, Socket, Namespace } from "socket.io"; // Import necessary types
+import { Server as SocketIOServer, Socket, Namespace } from "socket.io"; 
 
-// Define a type for the decoded JWT payload expected by this middleware
 interface SocketTokenPayload extends JwtPayload {
-  userId: number; // Assuming userId is stored in the token as a number
-  // Add other properties if included in your token payload
+  userId: string; 
+  
 }
 
-// Extend the Socket type to include our custom userId property
+
 interface AuthenticatedSocket extends Socket {
-    userId?: number; // Add userId property
+    userId?: string;
 }
 
-// Map to store active connections by userId (Socket ID might be better, but using userId as per original)
-// Using AuthenticatedSocket type for the value
-const userConnections = new Map<number, AuthenticatedSocket[]>();
+// Map to store active connections by userId
+// Using WeakMap to allow garbage collection of disconnected sockets
+// Note: Since WeakMap requires objects as keys, we'd need to store differently
+const userConnections = new Map<string, Set<AuthenticatedSocket>>();
 
 /**
  * Sets up timer-specific WebSocket functionality using the existing Socket.io instance.
@@ -23,18 +23,18 @@ const userConnections = new Map<number, AuthenticatedSocket[]>();
  * @returns The created Socket.io Namespace for timers.
  */
 export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
-  // Create a namespace for timer-related events
+  
   const timerIo: Namespace = io.of("/timers");
 
-  // Authentication middleware for the timer namespace
+  
   timerIo.use((socket: Socket, next: (err?: Error) => void) => {
-    // Cast socket to our extended type
+    
     const authSocket = socket as AuthenticatedSocket;
 
-    // Get token from handshake auth or query
+    
     const token = authSocket.handshake.auth.token || authSocket.handshake.query.token;
 
-    if (!token || typeof token !== 'string') { // Check if token is a non-empty string
+    if (!token || typeof token !== 'string') { 
       console.log("Timer WS Auth: No token provided.");
       return next(new Error("Authentication required: No token provided"));
     }
@@ -46,32 +46,32 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
     }
 
     try {
-      // Verify JWT token
+      
       const decoded = jwt.verify(token, jwtSecret) as SocketTokenPayload;
 
-      // Validate decoded payload
-      if (!decoded.userId || typeof decoded.userId !== 'number') {
+      
+      if (!decoded.userId || typeof decoded.userId !== 'string') {
           console.log("Timer WS Auth: Invalid token payload (missing or invalid userId).");
           return next(new Error("Authentication failed: Invalid token payload"));
       }
 
-      // Attach userId to the socket object
+      
       authSocket.userId = decoded.userId;
       console.log(`Timer WS Auth: User ${decoded.userId} authenticated.`);
-      next(); // Proceed with connection
+      next(); 
     } catch (error: any) {
       console.error("Timer WS Auth: Token verification failed:", error.message);
       next(new Error("Authentication failed: Invalid or expired token"));
     }
   });
 
-  // Handle connections within the authenticated namespace
+  
   timerIo.on("connection", (socket: Socket) => {
-      // Cast socket to our extended type
+      
       const authSocket = socket as AuthenticatedSocket;
       const userId = authSocket.userId;
 
-      // userId should always be defined here due to the middleware, but check defensively
+      
       if (!userId) {
           console.error("Timer WS Connection: userId missing on authenticated socket. Disconnecting.");
           authSocket.disconnect(true);
@@ -80,24 +80,21 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
 
       console.log(`Timer WebSocket connected for user: ${userId} (Socket ID: ${authSocket.id})`);
 
-      // Store connection with userId
+      
       if (!userConnections.has(userId)) {
-          userConnections.set(userId, []);
+          userConnections.set(userId, new Set());
       }
-      userConnections.get(userId)?.push(authSocket); // Use optional chaining for safety
+      userConnections.get(userId)?.add(authSocket); 
 
-      // Handle disconnection
+      
       authSocket.on("disconnect", (reason: string) => {
           console.log(`Timer WebSocket disconnected for user: ${userId} (Socket ID: ${authSocket.id}), Reason: ${reason}`);
           if (userConnections.has(userId)) {
               const connections = userConnections.get(userId);
               if (connections) {
-                  const index = connections.indexOf(authSocket);
-                  if (index !== -1) {
-                      connections.splice(index, 1);
-                  }
-                  // If no more connections for this user, remove the user entry
-                  if (connections.length === 0) {
+                  connections.delete(authSocket);
+                  
+                  if (connections.size === 0) {
                       userConnections.delete(userId);
                       console.log(`Removed user ${userId} from active timer connections.`);
                   }
@@ -105,8 +102,8 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
           }
       });
 
-      // Optional: Handle specific events from the client for this namespace
-      // authSocket.on('timer:client_event', (data) => { ... });
+      
+      
   });
 
   return timerIo;
@@ -118,11 +115,11 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
  * @param event - The event name (string) to emit.
  * @param data - The data payload (any type) to send with the event.
  */
-export const broadcastToUser = (userId: number, event: string, data: any): void => {
+export const broadcastToUser = (userId: string, event: string, data: any): void => {
   if (userConnections.has(userId)) {
     const connections = userConnections.get(userId);
-    if (connections && connections.length > 0) {
-        console.log(`Broadcasting event '${event}' to user ${userId} (${connections.length} connection(s))`);
+    if (connections && connections.size > 0) {
+        console.log(`Broadcasting event '${event}' to user ${userId} (${connections.size} connection(s))`);
         connections.forEach((socket) => {
             socket.emit(event, data);
         });

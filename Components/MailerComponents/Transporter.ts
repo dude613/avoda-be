@@ -26,8 +26,6 @@ interface TransporterParams {
     htmlContent: string;
 }
 
-// We will use CreateEmailResponse from 'resend' as the return type
-
 
 /**
  * @returns The result from the Resend API (CreateEmailResponse).
@@ -44,11 +42,15 @@ export const Transporter = async (params: TransporterParams): Promise<CreateEmai
       html: htmlContent,
     });
 
-    // Check for errors returned in the response payload
+   // Check for errors returned in the response payload
     if (result.error) {
         console.error("Resend API returned an error:", result.error);
         // Throw an error using the message from the Resend error object
         throw new Error(`Resend API Error: ${result.error.message}`);
+    }
+    if (!result.data?.id) {
+        console.error("Resend API did not return an id:", result);
+        throw new Error(`Resend API Error: No id returned`);
     }
     // Return the successful response object
     return result;

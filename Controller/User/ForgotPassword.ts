@@ -106,7 +106,6 @@ export async function ForgotPasswordMail(req: ForgotPasswordMailRequest, res: Us
         const now = new Date();
         await prisma.user.updateMany({
           where: {
-            // email: email, // Target specific user or all expired tokens? Original targeted specific user.
             resetPasswordToken: { not: null }, // Only target users with a token
             resetPasswordExpires: { lt: now }, // Where expiry is in the past
           },

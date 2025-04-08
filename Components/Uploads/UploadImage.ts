@@ -1,110 +1,76 @@
-import multer, { FileFilterCallback, StorageEngine } from 'multer';
+import upload from './Multer.js'; // Import the configured multer instance (keep .js)
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
-import { Request } from 'express';
+import fs from 'fs/promises'; // Use promises version of fs for async/await
+import { RequestHandler } from 'express'; // Import RequestHandler type
 
-const ALLOWED_MIME_TYPES = [
-    'image/png',
-    'image/jpg',
-    'image/jpeg',
-    'image/svg+xml',
-    'image/webp',
-    'image/avif',
-];
+// Define the correct directory based on Multer.ts configuration
+const uploadDir = 'uploads';
+const imagesSubDir = 'images';
+const fullImagesPath = path.join(uploadDir, imagesSubDir); // Should match Multer.ts
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const filesDirectory = path.join(__dirname, '../../uploads');
-
-if (!fs.existsSync(filesDirectory)) {
-    fs.mkdirSync(filesDirectory, { recursive: true });
-}
-
-const fileFilter = (
-    req: Request,
-    file: Express.Multer.File,
-    cb: FileFilterCallback
-  ): void => {
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-        return cb(
-            null,
-            false
-        );
-    }
-    cb(null, true);
-};
-
-type DestinationCallback = (error: Error | null, destination: string) => void;
-type FilenameCallback = (error: Error | null, filename: string) => void;
-
-const storage: StorageEngine = multer.diskStorage({
-    destination: (
-        req: Request,
-        file: Express.Multer.File,
-        cb: DestinationCallback
-    ): void => {
-        cb(null, filesDirectory);
-    },
-    filename: (
-        req: Request,
-        file: Express.Multer.File,
-        cb: FilenameCallback
-    ): void => {
-        const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
-        const ext = path.extname(file.originalname);
-        cb(null, `${uniqueSuffix}${ext}`);
-    },
-});
-
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 20 * 1024 * 1024,
-    },  
-});
-
-const uploadImages = upload.fields([
-    { name: 'images', maxCount: 10 },
+/**
+ * Multer middleware configured to handle multiple files under the 'images' field.
+ */
+export const uploadImages: RequestHandler = upload.fields([
+    { name: 'images', maxCount: 10 }, // Field name and max count
+    // Add other fields if needed: { name: 'avatar', maxCount: 1 }
 ]);
 
-const deleteImages = (): void => {
-    if (fs.existsSync(filesDirectory)) {
-        fs.readdir(filesDirectory, (err: NodeJS.ErrnoException | null, files: string[]) => {
-            if (err) {
-                console.error('Could not list the directory.', err);
-                return;
-            }
-            files.forEach((file: string) => {
-                const filePath = path.join(filesDirectory, file);
-                fs.unlink(filePath, (err: NodeJS.ErrnoException | null) => {
-                    if (err) {
-                        console.error(`Failed to delete file: ${file}`, err);
-                    } else {
-                        console.log(`Deleted file: ${file}`);
-                    }
-                });
+/**
+ * Deletes all files within the configured image upload directory.
+ * USE WITH CAUTION!
+ */
+export const deleteImages = async (): Promise<void> => {
+    try {
+        const files = await fs.readdir(fullImagesPath);
+        if (files.length === 0) {
+            console.log(`Directory ${fullImagesPath} is empty, nothing to delete.`);
+            return;
+        }
+        const unlinkPromises = files.map(file => {
+            const filePath = path.join(fullImagesPath, file);
+            return fs.unlink(filePath).then(() => {
+                console.log(`Deleted file: ${filePath}`);
+            }).catch(err => {
+                // Log error but don't necessarily stop deleting others
+                console.error(`Failed to delete file: ${filePath}`, err);
             });
         });
+        await Promise.allSettled(unlinkPromises); // Wait for all deletions to attempt
+        console.log(`Attempted deletion of all files in ${fullImagesPath}. Check logs for errors.`);
+    } catch (err: any) {
+        // Handle errors like directory not found (though Multer.ts should create it)
+        if (err.code === 'ENOENT') {
+             console.log(`Directory ${fullImagesPath} not found, nothing to delete.`);
+        } else {
+            console.error(`Could not list or process directory ${fullImagesPath}.`, err);
+        }
+        // Decide if this function should throw or just log errors
+        // throw err; // Uncomment to propagate the error
     }
 };
 
-const deleteImage = (file: string): Promise<any> => {
-    const filePath = path.join(filesDirectory, file);
-    return new Promise((resolve, reject) => {
-        fs.unlink(filePath, (err: NodeJS.ErrnoException | null) => {
-            if (err) {
-                console.error(`Failed to delete file: ${file}`, err);
-                reject({ error: err });
-            } else {
-                console.log(`Deleted file: ${file}`);
-                resolve({ error: false });
-            }
-        });
-    });
+/**
+ * Deletes a specific file from the configured image upload directory.
+ * @param filename - The name of the file to delete.
+ * @returns A promise that resolves on successful deletion or rejects on error.
+ */
+export const deleteImage = async (filename: string): Promise<{ success: boolean; error?: Error }> => {
+    if (!filename) {
+        console.error("deleteImage called with empty filename.");
+        return { success: false, error: new Error("Filename cannot be empty.") };
+    }
+    const filePath = path.join(fullImagesPath, filename);
+    try {
+        await fs.unlink(filePath);
+        console.log(`Deleted file: ${filePath}`);
+        return { success: true };
+    } catch (err: any) {
+        console.error(`Failed to delete file: ${filePath}`, err);
+         // Check if the error is because the file doesn't exist (ENOENT)
+        if (err.code === 'ENOENT') {
+            return { success: false, error: new Error(`File not found: ${filename}`) };
+        }
+        return { success: false, error: err }; // Return the actual error object
+    }
 };
-
-export { uploadImages, deleteImages, deleteImage };

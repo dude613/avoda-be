@@ -1,51 +1,89 @@
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { Request, Response, NextFunction } from "express";
 import { prisma } from "../Components/ConnectDatabase.js";
 
-export const authenticate = async (req, res, next) => {
+// Define a type for the decoded JWT payload
+interface DecodedToken extends JwtPayload {
+  email: string;
+  // Add other properties expected in your token payload if any
+}
+
+// Extend Express Request to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any; // Use a more specific type if available
+    }
+  }
+}
+
+export const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => { // Add return type Promise<void>
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: "Authentication required: No token provided",
       });
-    }
-    if (!process.env.JWT_SECRET_KEY) {
-      console.error("JWT secret key is not defined");
-      return res.status(500).json({
-        success: false,
-        message: "Server configuration error",
-      });
+      return; // Return without calling next()
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    
-    if (!decoded) {
-      return res.status(401).json({
+    const jwtSecret = process.env.JWT_SECRET_KEY;
+    if (!jwtSecret) {
+      console.error("JWT secret key is not defined");
+      res.status(500).json({
         success: false,
-        message: "Authentication failed: User not found in token",
+        message: "Server configuration error: JWT_SECRET_KEY missing",
       });
+      return; // Return without calling next()
     }
-    
+
+    // jwt.verify throws an error if verification fails
+    const decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+
+    // Check if email exists in the decoded token
+    if (!decoded.email) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication failed: Token payload is missing email",
+      });
+      return; // Return without calling next()
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: decoded.email },
     });
 
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        message: "Authentication failed: Invalid token",
+        message: "Authentication failed: User associated with token not found",
       });
+      return; // Return without calling next()
     }
 
+    // Attach user to the request object
     req.user = user;
     next();
-  } catch (error) {
-    console.error("Authentication error:", error.message, error);
-    return res.status(401).json({
+  } catch (error: any) {
+    console.error("Authentication error:", error.message);
+    
+    let message = "Authentication failed: Invalid token";
+    if (error instanceof jwt.TokenExpiredError) {
+      message = "Authentication failed: Token expired";
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      message = `Authentication failed: ${error.message}`;
+    }
+
+    res.status(401).json({
       success: false,
-      message: "Authentication failed: Invalid token",
+      message: message,
     });
+    // Don't call next() here - we've already sent a response
   }
 };

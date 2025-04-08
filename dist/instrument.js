@@ -5,7 +5,7 @@ import { nodeProfilingIntegration } from "@sentry/profiling-node";
 //import { expressIntegration } from "@sentry/node"; // Keep import uncommented
 Sentry.init({
     dsn: process.env.SEN_DSN,
-    debug: process.env.SEN_DEBUG === true,
+    debug: process.env.SEN_DEBUG === "true",
     integrations: [
         //expressIntegration(),
         nodeProfilingIntegration(),
@@ -15,3 +15,4 @@ Sentry.init({
     // Set sampling rate for profiling - this is relative to tracesSampleRate
     profilesSampleRate: 1.0,
 });
+//# sourceMappingURL=instrument.js.map

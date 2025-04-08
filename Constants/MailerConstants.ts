@@ -1,21 +1,73 @@
-
 import dotenv from "dotenv";
 dotenv.config();
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-export const mailerContent = {
+// Define types for the nested structure
+interface MailerMessages {
+    readonly IGNORE_RESET_EMAIL_MESSAGE: string;
+    readonly IGNORE_EMAIL_MESSAGE: string;
+}
+
+interface MailerOtp {
+    readonly OTP_MESSAGE: string;
+    readonly OTP_EXPIRATION_PREFIX: string;
+    readonly OTP_EXPIRATION_SUFFIX: string;
+}
+
+interface MailerVerification {
+    readonly EMAIL_VERIFICATION_HEADING: string;
+    readonly VERIFY_EMAIL_SUBJECT: string;
+    readonly VERIFY_EMAIL_BUTTON_TEXT: string;
+    readonly EMAIL_SENT_SUCCESSFULLY_MESSAGE: string;
+    readonly VERIFICATION_LINK_BASE: string;
+}
+
+interface MailerReset {
+    readonly PASSWORD_RESET_REQUEST_HEADING: string;
+    readonly RESET_PASSWORD_LINK_TEXT: string;
+    readonly RESET_PASSWORD_BUTTON_TEXT: string;
+    readonly RESET_YOUR_PASSWORD_SUBJECT: string;
+    readonly RESET_LINK_BASE: string;
+}
+
+interface MailerInvitation {
+    readonly INVITATION_EMAIL_HEADING: string;
+    readonly INVITATION_EMAIL_TEXT: string;
+    readonly INVITATION_EMAIL_SUB_TEXT: string;
+    readonly INVITATION_EMAIL_SUBJECT: string;
+    readonly INVITATION_EMAIL_NAME: string;
+    readonly INVITATION_EMAIL_ROLE: string;
+    readonly INVITATION_EMAIL_BODY_TEXT: string;
+    readonly INVITATION_EMAIL_FOOTER_TEXT: string;
+    readonly INVITATION_EMAIL_SUPPORT_EMAIL: string;
+    readonly INVITATION_EMAIL_FOOTER_SUB_TEXT: string;
+    readonly INVITATION_EMAIL_FOOTER_LINK: string;
+}
+
+// Define the main type
+interface MailerContent {
+    readonly messages: MailerMessages;
+    readonly otp: MailerOtp;
+    readonly verification: MailerVerification;
+    readonly reset: MailerReset;
+    readonly invitation: MailerInvitation;
+}
+
+// Use environment variable with a default
+const FRONTEND_URL: string = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Export the typed constant object using 'as const'
+export const mailerContent: MailerContent = {
     messages: {
         IGNORE_RESET_EMAIL_MESSAGE: "If you did not make this request, you can ignore this email.",
         IGNORE_EMAIL_MESSAGE: "If you didn't request this, please ignore this email.",
     },
-
     otp: {
         OTP_MESSAGE: "Your OTP code is: ",
         OTP_EXPIRATION_PREFIX: "This OTP will expire in ",
         OTP_EXPIRATION_SUFFIX: " minutes",
     },
     verification: {
-    EMAIL_VERIFICATION_HEADING: "Email Verification",
+        EMAIL_VERIFICATION_HEADING: "Email Verification",
         VERIFY_EMAIL_SUBJECT: "Verify Your Email",
         VERIFY_EMAIL_BUTTON_TEXT: "Verify Email",
         EMAIL_SENT_SUCCESSFULLY_MESSAGE: "Email sent successfully.",
@@ -41,5 +93,4 @@ export const mailerContent = {
         INVITATION_EMAIL_FOOTER_SUB_TEXT: "We look forward to working with you!",
         INVITATION_EMAIL_FOOTER_LINK: `${FRONTEND_URL}/contact`,
     }
-
-}
+} as const; // Use 'as const' for immutability and literal types

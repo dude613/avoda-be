@@ -1,5 +1,6 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { Request, Response } from "express";
+import { CreateOrganizationRequest, SkipOrganizationRequest, UpdateOrganizationRequest, GetOrganizationRequest, CreateOrganizationBody, UpdateOrganizationBody } from "../../types/organization.types.js";
 
 export async function CreateOrganization(req: Request, res: Response) {
   try {
@@ -22,7 +23,7 @@ export async function CreateOrganization(req: Request, res: Response) {
         userId: userIdInt,
         name: organizationName,
         industry: industry,
-        size: sizeMapping[companySize] as "startup" | "small" | "medium" | "large",
+        size: companySize ? sizeMapping[companySize] as "startup" | "small" | "medium" | "large" : null,
       },
     });
 
@@ -121,7 +122,7 @@ export async function UpdateOrganization(req: Request, res: Response) {
 
 export async function GetOrganization(req: Request, res: Response) {
   try {
-    const userId = parseInt(req.params.userId, 10);
+    const userId = parseInt(req.params.userId || "", 10);
     if (isNaN(userId)) {
       return res
         .status(400)

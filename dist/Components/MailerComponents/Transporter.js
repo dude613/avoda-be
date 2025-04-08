@@ -1,19 +1,47 @@
 import { Resend } from "resend";
 import dotenv from "dotenv";
 dotenv.config();
-const resend = new Resend(process.env.RESEND_API_KEY);
-export const Transporter = async ({ to, subject, htmlContent }) => {
+// Validate essential environment variables
+const resendApiKey = process.env.RESEND_API_KEY;
+const resendEmailUser = process.env.RESEND_EMAIL_USER;
+if (!resendApiKey) {
+    throw new Error("RESEND_API_KEY environment variable is not defined.");
+}
+if (!resendEmailUser) {
+    throw new Error("RESEND_EMAIL_USER environment variable is not defined.");
+}
+// Initialize Resend client
+const resend = new Resend(resendApiKey);
+// We will use CreateEmailResponse from 'resend' as the return type
+/**
+ * @returns The result from the Resend API (CreateEmailResponse).
+ * @throws Throws an error if sending fails.
+ */
+export const Transporter = async (params) => {
+    const { to, subject, htmlContent } = params;
     try {
+        // The result type is inferred from resend.emails.send
         const result = await resend.emails.send({
-            from: process.env.RESEND_EMAIL_USER,
+            from: resendEmailUser, // Use validated env var
             to: to,
             subject: subject,
             html: htmlContent,
         });
+        // Check for errors returned in the response payload
+        if (result.error) {
+            console.error("Resend API returned an error:", result.error);
+            // Throw an error using the message from the Resend error object
+            throw new Error(`Resend API Error: ${result.error.message}`);
+        }
+        // Return the successful response object
         return result;
     }
     catch (error) {
-        console.error("Error sending email:", error);
-        throw error;
+        // Catch network errors or errors thrown from the check above
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Error sending email via Resend:", errorMessage);
+        // Re-throw the error or return a structured error object
+        throw new Error(`Failed to send email: ${errorMessage}`);
     }
 };
+//# sourceMappingURL=Transporter.js.map

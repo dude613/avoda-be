@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
+// Use environment variable with a default
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+// Export the typed constant object using 'as const'
 export const mailerContent = {
     messages: {
         IGNORE_RESET_EMAIL_MESSAGE: "If you did not make this request, you can ignore this email.",
@@ -38,4 +40,5 @@ export const mailerContent = {
         INVITATION_EMAIL_FOOTER_SUB_TEXT: "We look forward to working with you!",
         INVITATION_EMAIL_FOOTER_LINK: `${FRONTEND_URL}/contact`,
     }
-};
+}; // Use 'as const' for immutability and literal types
+//# sourceMappingURL=MailerConstants.js.map

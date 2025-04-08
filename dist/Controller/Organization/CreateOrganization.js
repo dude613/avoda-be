@@ -18,15 +18,15 @@ export async function CreateOrganization(req, res) {
                 userId: userIdInt,
                 name: organizationName,
                 industry: industry,
-                size: sizeMapping[companySize],
+                size: companySize ? sizeMapping[companySize] : null,
             },
         });
         return res
             .status(200)
             .send({ success: true, message: "Organization created successfully!" });
     }
-    catch (e) {
-        console.log("error message organization Creation!", e.message);
+    catch (error) {
+        console.log("error message organization Creation!", error.message);
         return res
             .status(500)
             .send({ error: "Internal server error. Please try again!" });
@@ -110,7 +110,7 @@ export async function UpdateOrganization(req, res) {
 }
 export async function GetOrganization(req, res) {
     try {
-        const userId = parseInt(req.params.userId, 10);
+        const userId = parseInt(req.params.userId || "", 10);
         if (isNaN(userId)) {
             return res
                 .status(400)
@@ -229,3 +229,4 @@ const validate = async (req, res) => {
             .send({ error: "Internal server error. Please try again!" });
     }
 };
+//# sourceMappingURL=CreateOrganization.js.map

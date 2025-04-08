@@ -8,26 +8,29 @@ interface ValidationResponse {
   error?: string;
 }
 
-interface InvitationLink {
-  orgName: string;
-  name: string;
-  email: string;
-  role: string;
-  resetLink: string;
-}
+import { AddMemberInput, ResetLinkInfo, TeamMemberRole } from "../../types/organization.types.js";
+
 
 export async function AddTeamMember(req: Request, res: Response) {
   try {
     const { members } = req.body;
-    const validationResponse: ValidationResponse = validate(members);
+    const validationResponse: ValidationResponse = validate(members as AddMemberInput[]);
     if (!validationResponse.success) {
       return res.status(400).send(validationResponse);
     }
     const addedMembers: any[] = [];
-    const resetLinks: InvitationLink[] = [];
+    const resetLinks: ResetLinkInfo[] = [];
+
+    interface User {
+      email: string;
+      id: number;
+    }
 
     for (let i = 0; i < members.length; i++) {
-      let { name, email, role, orgId } = members[i];
+      const member = members[i];
+      if (!member) continue;
+
+      let { name, email, role, orgId } = member;
       role = role ? role.toLowerCase() : '';
 
       const parsedOrgId = parseInt(orgId);
@@ -114,7 +117,7 @@ export async function AddTeamMember(req: Request, res: Response) {
         orgName: org?.name ?? "Your Organization",
         name: newTeamMember?.name ?? "Team Member",
         email: newTeamMember.email,
-        role: newTeamMember.role,
+        role: newTeamMember.role as TeamMemberRole,
         resetLink
       });
       addedMembers.push(newTeamMember);
@@ -137,14 +140,7 @@ export async function AddTeamMember(req: Request, res: Response) {
   }
 };
 
-interface Member {
-  email: string;
-  role: string;
-  orgId: string;
-  name: string;
-}
-
-const validate = (members: Member[]): ValidationResponse => {
+const validate = (members: AddMemberInput[]): ValidationResponse => {
   if (!members || members.length === 0) {
     return { success: false, error: "At least one member is required!" };
   }
@@ -159,7 +155,9 @@ const validate = (members: Member[]): ValidationResponse => {
   const seenEmails = new Set<string>();
 
   for (let i = 0; i < members.length; i++) {
-    const { email, role, orgId, name } = members[i];
+    const member = members[i];
+    if (!member) continue;
+    const { email, role, orgId, name } = member;
 
     if (!name || name.trim().length === 0) {
       return { success: false, error: `Name is required for member ${i + 1}` };

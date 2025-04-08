@@ -1,282 +1,369 @@
 import dotenv from "dotenv";
 import crypto from "crypto";
-import { OAuth2Client } from "google-auth-library";
-import { generateAccessToken, generateRefreshToken, } from "../../Components/VerifyAccessToken.js";
-import { prisma } from "../../Components/ConnectDatabase.js";
-import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js";
-import { userContent } from "../../Constants/UserConstants.js";
+import { OAuth2Client } from "google-auth-library"; // Import Credentials
 import bcrypt from "bcryptjs";
-const { errors: { EMAIL_NOT_FOUND_ERROR, EMAIL_REQUIRED_ERROR, INVALID_EMAIL_FORMAT_ERROR, GENERIC_ERROR_MESSAGE, USER_EMAIL_ALREADY_EXIST, USER_EMAIL_ALREADY_VERIFIED }, messages: { PASSWORD_REQUIRED_ERROR, PASSWORD_COMPLEXITY_ERROR, USER_SEND_OTP, OTP_NOT_SENT, ROLE_REQUIRED_ERROR, INVALID_ROLE_ERROR }, success: { USER_REGISTER_SUCCESS }, validations: { EMAIL: EMAIL_REGEX, PASSWORD_REGEX } } = userContent;
+import { generateAccessToken, generateRefreshToken, } from "../../Components/VerifyAccessToken.js"; // Assuming JS is compatible
+import { prisma } from "../../Components/ConnectDatabase.js";
+import { SendOTPInMail } from "../../Components/MailerComponents/SendOTPMail.js"; // Assuming JS is compatible
+import { userContent } from "../../Constants/UserConstants.js"; // Assuming JS is compatible
+import { // Type for roles
+validUserRoles // Constant array for roles
+ } from "../../types/user.types.js"; // Adjust path/extension if needed
 dotenv.config();
+// Destructure constants with defaults
+const { errors: { EMAIL_NOT_FOUND_ERROR = "Email address not found.", EMAIL_REQUIRED_ERROR = "Email address is required.", INVALID_EMAIL_FORMAT_ERROR = "Invalid email format.", GENERIC_ERROR_MESSAGE = "An internal server error occurred.", USER_EMAIL_ALREADY_EXIST = "This email is already registered.", USER_EMAIL_ALREADY_VERIFIED = "This email is already verified.", // Not used in original JS but good to have
+OTP_NOT_SENT = "Failed to send OTP." // Moved from messages
+ } = {}, messages: { PASSWORD_REQUIRED_ERROR = "Password is required.", PASSWORD_COMPLEXITY_ERROR = "Password does not meet complexity requirements.", USER_SEND_OTP = "OTP has been sent to your registered email address.", 
+// OTP_NOT_SENT removed from here
+ROLE_REQUIRED_ERROR = "Role is required.", INVALID_ROLE_ERROR = "Invalid role specified." } = {}, success: { USER_REGISTER_SUCCESS = "User registered successfully." } = {}, validations: { EMAIL: EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/, PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/ // Example complexity
+ } = {} } = userContent || {};
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const AUTH_URL = process.env.AUTH_URL;
+const AUTH_URL = process.env.AUTH_URL; // e.g., 'https://www.googleapis.com/oauth2/v3/userinfo'
+// Validate essential environment variables
+if (!CLIENT_ID) {
+    console.error("GOOGLE_CLIENT_ID environment variable is not set.");
+}
+if (!AUTH_URL) {
+    console.error("AUTH_URL environment variable is not set.");
+}
 const client = new OAuth2Client(CLIENT_ID);
+// Type assertion for imported mailer function
+const typedSendOTPInMail = SendOTPInMail;
+// --- Register Function ---
 export async function Register(req, res) {
     try {
         const { email, password, role } = req.body;
-        let { userName } = req.body;
-        // If userName is not provided, create it from email
+        let { userName } = req.body; // userName is optional in body
+        // Derive userName from email if not provided
         if (!userName || userName.trim().length === 0) {
             userName = email.split('@')[0];
-            req.body.userName = userName;
+            // Optionally update req.body if needed by validation, though validate uses destructured vars
+            // req.body.userName = userName;
         }
-        const validationResponse = validate(req, res);
+        // Use typed internal validation function
+        // Need to pass the potentially derived userName to validate
+        const validationResponse = validate({ body: { email, password, role, userName } }, res);
         if (validationResponse !== true) {
-            return;
+            return; // Validation failed and sent response
         }
         let user = await prisma.user.findUnique({
-            where: {
-                email: email,
-            },
+            where: { email: email },
         });
+        let isNewUser = false;
         if (user) {
+            // User exists
             if (user.verified === true) {
-                return res.status(400).send({
-                    success: false,
-                    error: USER_EMAIL_ALREADY_EXIST,
-                });
+                // Already verified, cannot re-register
+                res.status(400).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
+                return;
             }
+            // User exists but is not verified, proceed to send OTP again
         }
         else {
+            // User does not exist, create new user
+            isNewUser = true;
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
             user = await prisma.user.create({
                 data: {
-                    userName,
+                    userName, // Use derived or provided userName
                     email,
                     password: hashedPassword,
-                    role,
-                    verified: false
+                    role, // Use validated role
+                    verified: false // New users start as unverified
                 },
             });
         }
+        // Ensure user object is available (should be after find or create)
+        if (!user) {
+            throw new Error("User record could not be found or created.");
+        }
+        // Generate OTP and expiry
         const otp = crypto.randomInt(100000, 999999).toString();
-        const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
+        const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes expiry
+        // Upsert OTP record
         await prisma.otp.upsert({
-            where: {
-                userId: user.id,
-            },
+            where: { userId: user.id },
             update: {
-                otp: parseInt(otp),
+                otp: parseInt(otp, 10), // Store OTP as number if schema requires
                 expiresAt: otpExpiration,
             },
             create: {
                 userId: user.id,
-                otp: parseInt(otp),
+                otp: parseInt(otp, 10), // Store OTP as number if schema requires
                 expiresAt: otpExpiration,
             },
         });
-        const data = await SendOTPInMail(otp, email);
-        if (data?.data) {
-            res.status(201).send({
+        // Send OTP email
+        const otpResponse = await typedSendOTPInMail(otp, email);
+        // Check response from mailer: Success is indicated by presence of 'id' from Resend
+        if ('id' in otpResponse) { // Check if it's the success response { id: string }
+            res.status(isNewUser ? 201 : 200).send({
                 success: true,
                 message: USER_SEND_OTP,
-                data: data,
+                // data: otpResponse.data // Avoid sending back mailer internal data
             });
+        }
+        else {
+            // Log the specific mailer error if available (it's the error response { success: false, error: string })
+            console.error("Failed to send OTP mail:", otpResponse.error);
+            res.status(500).send({
+                success: false,
+                message: OTP_NOT_SENT,
+                // error: otpResponse.error // Avoid sending back internal error details
+            });
+        }
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("User Register Error:", errorMessage);
+        // Check for specific Prisma errors like unique constraint violation (P2002)
+        if (error instanceof Error && error.code === 'P2002') {
+            res.status(400).send({ success: false, error: "An account with this email already exists." });
         }
         else {
             res.status(500).send({
                 success: false,
-                message: OTP_NOT_SENT,
-                data: data?.error,
+                error: GENERIC_ERROR_MESSAGE,
+                details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
             });
         }
     }
-    catch (error) {
-        console.error("User Register Error:", error);
-        return res.status(500).send({
-            success: false,
-            error: GENERIC_ERROR_MESSAGE
-        });
-    }
 }
+// --- Google Registration Function ---
 export const registerWithGoogle = async (req, res) => {
     try {
         const { idToken, role } = req.body;
         if (!idToken) {
-            return res.status(400).send({
-                success: false,
-                error: "ID token is required"
-            });
+            res.status(400).send({ success: false, error: "ID token is required" });
+            return;
         }
+        if (!role) {
+            res.status(400).send({ success: false, error: ROLE_REQUIRED_ERROR });
+            return;
+        }
+        if (!validUserRoles.includes(role)) {
+            res.status(400).send({ success: false, error: INVALID_ROLE_ERROR });
+            return;
+        }
+        if (!AUTH_URL || !client) {
+            console.error("Google Auth client or AUTH_URL not initialized.");
+            res.status(500).send({ success: false, error: "Server configuration error." });
+            return;
+        }
+        // Verify Google token
         client.setCredentials({ access_token: idToken });
         const response = await client.request({ url: AUTH_URL });
         const payload = response.data;
-        if (!payload) {
-            return res.status(401).send({
-                success: false,
-                error: "Invalid ID token"
-            });
+        if (!payload || !payload.id || !payload.email) {
+            console.error("Invalid Google payload structure:", payload);
+            res.status(401).send({ success: false, error: "Invalid Google authentication response" });
+            return;
         }
         const { id: googleId, email, name, picture } = payload;
-        if (!googleId || !email || !name) {
-            return res.status(400).send({
-                success: false,
-                error: "Invalid Google profile data"
-            });
-        }
-        if (!role) {
-            return res.status(400).send({
-                success: false,
-                error: ROLE_REQUIRED_ERROR
-            });
-        }
-        const validRoles = ['user', 'admin', 'employee', 'manager'];
-        if (!validRoles.includes(role)) {
-            return res.status(400).send({
-                success: false,
-                error: INVALID_ROLE_ERROR
-            });
-        }
+        // Check if user already exists
         let user = await prisma.user.findUnique({
-            where: {
-                email: email,
+            where: { email: email },
+        });
+        if (user) {
+            // User exists, cannot register again with Google if already exists
+            res.status(400).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
+            return;
+        }
+        // User does not exist, create new user with Google details
+        user = await prisma.user.create({
+            data: {
+                googleId,
+                email,
+                userName: name || email.split('@')[0], // Use Google name or derive from email
+                picture: picture || null, // Use Google picture or null
+                role, // Use role provided in request
+                verified: true, // Google accounts are considered verified
+                lastLoginAt: new Date(), // Set last login time on registration
             },
         });
-        if (!user) {
-            user = await prisma.user.create({
-                data: {
-                    googleId,
-                    email,
-                    userName: name,
-                    picture,
-                    verified: true,
-                },
-            });
-            const accessToken = generateAccessToken(user);
-            const refreshToken = generateRefreshToken(user);
-            await prisma.user.update({
-                where: {
-                    id: user.id,
-                },
-                data: {
-                    refreshToken: refreshToken,
-                },
-            });
-            return res.status(201).send({
-                success: true,
-                message: USER_REGISTER_SUCCESS,
-                data: {
-                    user: {
-                        id: user.id,
-                        email: user.email,
-                        userName: user.userName,
-                        picture: user.picture,
-                        verified: user.verified,
-                        role: user.role
-                    },
-                    accessToken,
-                    refreshToken
-                }
-            });
-        }
-        else {
-            res.status(404).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
-        }
-    }
-    catch (error) {
-        console.error("Google Registration Error:", error);
-        return res.status(500).send({
-            success: false,
-            error: GENERIC_ERROR_MESSAGE
+        // Generate tokens for the new user
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
+        // Store refresh token
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken: refreshToken },
+        });
+        // Prepare response data
+        const responseData = {
+            user: {
+                id: user.id,
+                email: user.email,
+                userName: user.userName,
+                picture: user.picture,
+                verified: user.verified,
+                role: user.role
+            },
+            accessToken,
+            refreshToken // Include refresh token in response as per original JS
+        };
+        res.status(201).send({
+            success: true,
+            message: USER_REGISTER_SUCCESS,
+            data: responseData
         });
     }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Google Registration Error:", errorMessage);
+        if (error instanceof Error && error.code === 'P2002') {
+            // Handle potential unique constraint violation if somehow user was created concurrently
+            res.status(400).send({ success: false, error: "An account with this email already exists." });
+        }
+        else {
+            res.status(500).send({
+                success: false,
+                error: GENERIC_ERROR_MESSAGE,
+                details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+            });
+        }
+    }
 };
+// --- Internal Validation Function ---
+// NOTE: This validates fields for standard registration.
+// The ResetPassword function below reuses it, which is incorrect as ResetPassword only needs email/password.
 const validate = (req, res) => {
+    // Type guard to check which request type it is might be needed if validation differs significantly
     const { email, password, userName, role } = req.body;
     if (!email) {
-        return res
-            .status(400)
-            .send({ success: false, error: EMAIL_REQUIRED_ERROR });
+        res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
+        return false;
     }
     if (!EMAIL_REGEX.test(email)) {
-        return res
-            .status(400)
-            .send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+        res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+        return false;
     }
     if (!password) {
-        return res
-            .status(400)
-            .send({ success: false, error: PASSWORD_REQUIRED_ERROR });
+        res.status(400).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
+        return false;
     }
     if (!PASSWORD_REGEX.test(password)) {
-        return res
-            .status(400)
-            .send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+        res.status(400).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+        return false;
     }
+    // userName is derived if missing, so check should pass if derivation logic works
     if (!userName || userName.trim().length === 0) {
-        return res
-            .status(400)
-            .send({ success: false, error: "Username is required!" });
+        // This check might be redundant if userName is always derived before validation
+        res.status(400).send({ success: false, error: "Username is required!" });
+        return false;
     }
     if (!role) {
-        return res
-            .status(400)
-            .send({ success: false, error: ROLE_REQUIRED_ERROR });
+        res.status(400).send({ success: false, error: ROLE_REQUIRED_ERROR });
+        return false;
     }
-    const validRoles = ['user', 'admin', 'employee', 'manager'];
-    if (!validRoles.includes(role)) {
-        return res
-            .status(400)
-            .send({ success: false, error: INVALID_ROLE_ERROR });
+    if (!validUserRoles.includes(role)) {
+        res.status(400).send({ success: false, error: INVALID_ROLE_ERROR });
+        return false;
     }
+    return true; // Validation passed
+};
+// --- Reset Password Function (Misplaced from original Register.js) ---
+// Separate validation function specifically for ResetPassword
+const validateResetPassword = (req, res) => {
+    const { email, password } = req.body;
+    if (!email) {
+        res.status(400).send({ success: false, error: EMAIL_REQUIRED_ERROR });
+        return false;
+    }
+    if (!EMAIL_REGEX.test(email)) {
+        res.status(400).send({ success: false, error: INVALID_EMAIL_FORMAT_ERROR });
+        return false;
+    }
+    if (!password) {
+        res.status(400).send({ success: false, error: PASSWORD_REQUIRED_ERROR });
+        return false;
+    }
+    // Consider adding password complexity check here if desired for reset
+    // if (!PASSWORD_REGEX.test(password)) {
+    //     res.status(400).send({ success: false, error: PASSWORD_COMPLEXITY_ERROR });
+    //     return false;
+    // }
     return true;
 };
+// --- Reset Password Function (Misplaced from original Register.js) ---
+// NOTE: Still misplaced, but now uses its own validation.
 export async function ResetPassword(req, res) {
     try {
         const { email, password } = req.body;
-        const validationResponse = validate(req, res);
+        // Use the correct validation function for ResetPassword
+        const validationResponse = validateResetPassword(req, res);
         if (validationResponse !== true) {
-            return;
+            return; // Validation failed and sent response
         }
         let user = await prisma.user.findUnique({
-            where: {
-                email: email,
-            },
+            where: { email: email },
         });
         if (!user) {
-            return res.status(404).send({
-                success: false,
-                error: EMAIL_NOT_FOUND_ERROR,
-            });
+            res.status(404).send({ success: false, error: EMAIL_NOT_FOUND_ERROR });
+            return;
         }
+        // Check if user has a password (might be Google-only user) - Reuse check from SetNewPassword
+        if (!user.password) {
+            res.status(400).json({ success: false, error: "Password cannot be reset for this account type." });
+            return;
+        }
+        // Check if new password is same as old - Reuse check from SetNewPassword
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (isMatch) {
+            // Use the constant defined earlier
+            const { PASSWORD_ALREADY_EXIST = "New password cannot be the same as the old password." } = userContent?.errors || {};
+            res.status(400).send({ success: false, error: PASSWORD_ALREADY_EXIST });
+            return;
+        }
+        // Hash new password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
+        // Update password
         user = await prisma.user.update({
-            where: {
-                email: email,
-            },
+            where: { email: email },
             data: {
                 password: hashedPassword,
+                // Clear reset tokens if they exist?
+                // resetPasswordToken: null,
+                // resetPasswordExpires: null,
             },
         });
+        // --- OTP Logic (Seems out of place for password reset) ---
+        // This logic sends an OTP after resetting the password, which is unusual.
+        // Usually, OTP is for verification *before* reset or during registration.
+        // Keeping original logic for now.
         const otp = crypto.randomInt(100000, 999999).toString();
-        const otpExpiration = new Date(Date.now() + 30 * 60 * 1000);
+        const otpExpiration = new Date(Date.now() + 30 * 60 * 1000); // 30 mins
         await prisma.otp.upsert({
-            where: {
-                userId: user.id,
-            },
-            update: {
-                otp: parseInt(otp),
-                expiresAt: otpExpiration,
-            },
-            create: {
-                userId: user.id,
-                otp: parseInt(otp),
-                expiresAt: otpExpiration,
-            },
+            where: { userId: user.id },
+            update: { otp: parseInt(otp, 10), expiresAt: otpExpiration },
+            create: { userId: user.id, otp: parseInt(otp, 10), expiresAt: otpExpiration },
         });
-        await SendOTPInMail(otp, email);
-        return res.status(200).send({
+        // Send OTP email and check response
+        const otpResetResponse = await typedSendOTPInMail(otp, email);
+        if (!('id' in otpResetResponse)) { // Check for failure
+            console.error("Failed to send OTP mail after password reset:", otpResetResponse.error);
+            // Decide how to handle: maybe still return success for password reset but log OTP failure?
+            // Original code didn't check the response here, proceeding with success regardless.
+        }
+        // --- End OTP Logic ---
+        // Use the correct success message constant
+        const { PASSWORD_UPDATED_SUCCESS = "Password updated successfully." } = userContent?.success || {};
+        res.status(200).send({
             success: true,
-            message: USER_SEND_OTP,
+            // Message should probably indicate password was reset, not OTP sent.
+            message: PASSWORD_UPDATED_SUCCESS, // Changed from USER_SEND_OTP
         });
     }
     catch (error) {
-        console.error("Password Reset Error:", error);
-        return res.status(500).send({
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Password Reset Error (from Register.js):", errorMessage);
+        res.status(500).send({
             success: false,
-            error: GENERIC_ERROR_MESSAGE
+            error: GENERIC_ERROR_MESSAGE,
+            details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
     }
 }
+//# sourceMappingURL=Register.js.map

@@ -1,3 +1,4 @@
+// Export the typed constant object using 'as const'
 export const userContent = {
     errors: {
         EMAIL_NOT_FOUND_ERROR: "This email doesn't exist in our database. Please try another email.",
@@ -14,7 +15,11 @@ export const userContent = {
         INVALID_FILE_TYPE: "Invalid file type. Only JPEG, PNG, and GIF images are allowed",
         FILE_SIZE_EXCEEDED: "File size exceeds the maximum limit of 5MB",
         NO_FILE_UPLOADED: "No file was uploaded",
-        GOOGLE_LOGIN_REQUIRED: "This email is registered with Google. Please use Google login instead."
+        GOOGLE_LOGIN_REQUIRED: "This email is registered with Google. Please use Google login instead.",
+        PASSWORD_ALREADY_EXIST: "New password cannot be the same as the old password.",
+        TOO_MANY_REQUESTS_ERROR: "Too many requests, please try again later.",
+        OTP_REQUIRED_ERROR: "OTP is required.",
+        INVALID_OTP_FORMAT_ERROR: "Invalid OTP format (must be 6 digits)."
     },
     success: {
         USER_EMAIL_VERIFIED: "Email verified successfully!",
@@ -32,9 +37,11 @@ export const userContent = {
         PASSWORD_RESET_EMAIL_SENT: "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",
         USER_SEND_OTP: "OTP has been sent to your registered email address!",
         USER_LOGOUT_SUCCESS: "User logged out successfully",
+        PASSWORD_ALREADY_EXIST: "Password is the same as your previous one."
     },
     validations: {
         EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         PASSWORD_REGEX: /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/,
     }
-};
+}; // Use 'as const' for immutability and literal types
+//# sourceMappingURL=UserConstants.js.map

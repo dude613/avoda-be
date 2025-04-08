@@ -1,16 +1,12 @@
 import express from "express";
-import { startTimer, stopTimer, getActiveTimer, getUserTimers } from "../../Controller/Timer/index.js";
-import { validateConcurrentTimers } from "../../middleware/timerValidation.js";
+import { startTimer, stopTimer, getActiveTimer, getUserTimers, } from "../../Controller/Timer/index.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
 import { authenticate } from "../../middleware/authMiddleware.js";
 const router = express.Router();
-// All routes require authentication
-router.use(authenticate);
-// Start a new timer (with validation to prevent concurrent timers)
-router.post("/start", validateConcurrentTimers, startTimer);
-// Stop an active timer
-router.put("/stop/:timerId", stopTimer);
-// Get user's active timer (if any)
-router.get("/active", getActiveTimer);
-// Get user's timer history
-router.get("/", getUserTimers);
+// Use the asyncHandler wrapper for all routes
+router.post("/start", authenticate, asyncHandler(startTimer));
+router.put("/stop/:timerId", authenticate, asyncHandler(stopTimer));
+router.get("/active", authenticate, asyncHandler(getActiveTimer));
+router.get("/", authenticate, asyncHandler(getUserTimers));
 export const timerRoutes = router;
+//# sourceMappingURL=index.js.map

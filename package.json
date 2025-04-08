@@ -2,11 +2,12 @@
   "name": "av-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "start": "node --import ./instrument.js index.js",
+    "start": "node --import ./dist/instrument.js ./dist/index.js",
     "test": "npm run test ",
+    "build": "tsc",
     "lint": "eslint ."
   },
   "keywords": [],
@@ -42,10 +43,13 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/body-parser": "^1.19.5",
     "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/express-fileupload": "^1.5.1",
+    "@types/express": "^5.0.1",
+    "@types/express-rate-limit": "^6.0.2",
+    "@types/express-serve-static-core": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.14.0",
+    "@types/qs": "^6.9.18",
     "prisma": "^6.5.0",
     "typescript": "^5.8.3"
   }

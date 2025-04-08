@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
+  id           String         @id @default(uuid())
   userName     String?
   email        String         @unique
   password     String?
@@ -21,7 +21,10 @@ model User {
   lastLoginAt  DateTime?
   otp          String?
   otpExpiry    DateTime?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
   Organization Organization[]
+  timers       Timer[]
 
   @@map("users")
 }
@@ -88,8 +91,9 @@ enum UserDeleteStatus {
 }
 
 model Timer {
-  id        Int       @id @default(autoincrement())
-  user      Int
+  id        String    @id @default(uuid()) 
+  userId    String    
+  user      User      @relation(fields: [userId], references: [id])
   task      String
   project   String?
   client    String?

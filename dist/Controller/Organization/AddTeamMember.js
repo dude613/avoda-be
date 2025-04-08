@@ -11,7 +11,10 @@ export async function AddTeamMember(req, res) {
         const addedMembers = [];
         const resetLinks = [];
         for (let i = 0; i < members.length; i++) {
-            let { name, email, role, orgId } = members[i];
+            const member = members[i];
+            if (!member)
+                continue;
+            let { name, email, role, orgId } = member;
             role = role ? role.toLowerCase() : '';
             const parsedOrgId = parseInt(orgId);
             if (isNaN(parsedOrgId)) {
@@ -46,7 +49,7 @@ export async function AddTeamMember(req, res) {
             if (existingTeamMember) {
                 return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
             }
-            const user = { email, id: orgId };
+            const user = { email, id: parsedOrgId };
             const accessToken = generateAccessToken(user);
             const resetTokenExpiry = new Date();
             resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
@@ -78,15 +81,15 @@ export async function AddTeamMember(req, res) {
             catch (error) {
                 await prisma.teamMember.delete({
                     where: {
-                        id: parseInt(newTeamMember.id),
+                        id: newTeamMember.id,
                     },
                 });
                 throw new Error("Failed to update organization with new team member");
             }
             const resetLink = `${process.env.FRONTEND_URL}/register/setPassword?email=${encodeURIComponent(newTeamMember.email)}&token=${newTeamMember.resetToken}`;
             resetLinks.push({
-                orgName: org.name,
-                name: newTeamMember.name,
+                orgName: org?.name ?? "Your Organization",
+                name: newTeamMember?.name ?? "Team Member",
                 email: newTeamMember.email,
                 role: newTeamMember.role,
                 resetLink
@@ -122,7 +125,10 @@ const validate = (members) => {
     const nameRegex = /^[A-Za-z\s'-]+$/;
     const seenEmails = new Set();
     for (let i = 0; i < members.length; i++) {
-        const { email, role, orgId, name } = members[i];
+        const member = members[i];
+        if (!member)
+            continue;
+        const { email, role, orgId, name } = member;
         if (!name || name.trim().length === 0) {
             return { success: false, error: `Name is required for member ${i + 1}` };
         }
@@ -297,3 +303,4 @@ export async function EditTeamMember(req, res) {
         });
     }
 }
+//# sourceMappingURL=AddTeamMember.js.map

@@ -1,4 +1,61 @@
-export const userContent = {
+// Define interfaces for the nested structure
+interface UserErrors {
+    readonly EMAIL_NOT_FOUND_ERROR: string;
+    readonly EMAIL_REQUIRED_ERROR: string;
+    readonly INVALID_EMAIL_FORMAT_ERROR: string;
+    readonly PASSWORD_REQUIRED_INCORRECT: string;
+    readonly GENERIC_ERROR_MESSAGE: string;
+    readonly USER_EMAIL_ALREADY_EXIST: string;
+    readonly USER_EMAIL_ALREADY_VERIFIED: string;
+    readonly USER_INVALID_OTP: string;
+    readonly OTP_NOT_SENT: string;
+    readonly USER_NOT_FOUND: string;
+    readonly INVALID_USER_ID: string;
+    readonly INVALID_FILE_TYPE: string;
+    readonly FILE_SIZE_EXCEEDED: string;
+    readonly NO_FILE_UPLOADED: string;
+    readonly GOOGLE_LOGIN_REQUIRED: string;
+    readonly PASSWORD_ALREADY_EXIST: string;
+    readonly TOO_MANY_REQUESTS_ERROR: string;
+    readonly OTP_REQUIRED_ERROR: string;
+    readonly INVALID_OTP_FORMAT_ERROR: string;
+}
+
+interface UserSuccess {
+    readonly USER_EMAIL_VERIFIED: string;
+    readonly PASSWORD_UPDATED_SUCCESS: string;
+    readonly USER_LOGIN_SUCCESS: string;
+    readonly USER_REGISTER_SUCCESS: string;
+    readonly USER_PROFILE_DATA_SUCCESS: string;
+}
+
+interface UserMessages {
+    readonly PASSWORD_REQUIRED_ERROR: string;
+    readonly ROLE_REQUIRED_ERROR: string;
+    readonly INVALID_ROLE_ERROR: string;
+    readonly PASSWORD_COMPLEXITY_ERROR: string;
+    readonly USER_OTP_EXPIRE: string;
+    readonly PASSWORD_RESET_EMAIL_SENT: string;
+    readonly USER_SEND_OTP: string;
+    readonly USER_LOGOUT_SUCCESS: string;
+    readonly PASSWORD_ALREADY_EXIST: string;
+}
+
+interface UserValidations {
+    readonly EMAIL: RegExp;
+    readonly PASSWORD_REGEX: RegExp;
+}
+
+// Define the main type
+interface UserContent {
+    readonly errors: UserErrors;
+    readonly success: UserSuccess;
+    readonly messages: UserMessages;
+    readonly validations: UserValidations;
+}
+
+// Export the typed constant object using 'as const'
+export const userContent: UserContent = {
     errors:{
         EMAIL_NOT_FOUND_ERROR : "This email doesn't exist in our database. Please try another email.",
         EMAIL_REQUIRED_ERROR : "email is required!",
@@ -14,7 +71,11 @@ export const userContent = {
         INVALID_FILE_TYPE : "Invalid file type. Only JPEG, PNG, and GIF images are allowed",
         FILE_SIZE_EXCEEDED : "File size exceeds the maximum limit of 5MB",
         NO_FILE_UPLOADED : "No file was uploaded",
-        GOOGLE_LOGIN_REQUIRED : "This email is registered with Google. Please use Google login instead."
+        GOOGLE_LOGIN_REQUIRED : "This email is registered with Google. Please use Google login instead.",
+        PASSWORD_ALREADY_EXIST : "New password cannot be the same as the old password.",
+        TOO_MANY_REQUESTS_ERROR : "Too many requests, please try again later.",
+        OTP_REQUIRED_ERROR : "OTP is required.",
+        INVALID_OTP_FORMAT_ERROR : "Invalid OTP format (must be 6 digits)."
     },
     success:{
         USER_EMAIL_VERIFIED : "Email verified successfully!",
@@ -32,10 +93,10 @@ export const userContent = {
         PASSWORD_RESET_EMAIL_SENT : "A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.",
         USER_SEND_OTP : "OTP has been sent to your registered email address!",
         USER_LOGOUT_SUCCESS: "User logged out successfully",
+        PASSWORD_ALREADY_EXIST:"Password is the same as your previous one."
     },
     validations: {
         EMAIL : /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         PASSWORD_REGEX : /^(?=(.*[A-Z]))(?=(.*\d))(?=(.*[\W_]))[A-Za-z\d\W_]{8,16}$/,
     }
-}
-
+} as const; // Use 'as const' for immutability and literal types

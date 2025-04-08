@@ -1,7 +1,7 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from 'uuid'; // You'll need to install this package
+import { v4 as uuidv4 } from 'uuid';
 
 // Extend Request to include user property
 declare global {

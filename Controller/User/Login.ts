@@ -1,25 +1,25 @@
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 dotenv.config();
-import { OAuth2Client, Credentials } from "google-auth-library"; // Import Credentials type
+import { OAuth2Client, Credentials } from "google-auth-library";
 import {
   generateAccessToken,
   generateRefreshToken,
-} from "../../Components/VerifyAccessToken.js"; // Assuming these return string or handle errors
-import { userContent } from "../../Constants/UserConstants.js"; // Assuming JS is compatible
+} from "../../Components/VerifyAccessToken.js";
+import { userContent } from "../../Constants/UserConstants.js";
 import { prisma } from "../../Components/ConnectDatabase.js";
 import {
     LoginRequest,
     LoginWithGoogleRequest,
     UserResponse,
     ValidateLoginFunction,
-    LoginSuccessResponse, // Import success response type
-    LoginResponseUser, // Import user structure for response
-    GooglePayload // Import Google payload structure
-} from "../../types/user.types.js"; // Adjust path/extension if needed
-import { User as PrismaUser } from '@prisma/client'; // Import Prisma User type
+    LoginSuccessResponse, 
+    LoginResponseUser, 
+    GooglePayload 
+} from "../../types/user.types.js"; 
+import { User as PrismaUser } from '@prisma/client'; 
 
-// Destructure constants with defaults
+
 const {
   errors: {
     EMAIL_NOT_FOUND_ERROR = "Email address not found.",

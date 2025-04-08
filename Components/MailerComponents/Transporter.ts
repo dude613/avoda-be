@@ -26,8 +26,6 @@ interface TransporterParams {
     htmlContent: string;
 }
 
-// We will use CreateEmailResponse from 'resend' as the return type
-
 
 /**
  * @returns The result from the Resend API (CreateEmailResponse).

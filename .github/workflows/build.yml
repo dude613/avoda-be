@@ -24,9 +24,14 @@ jobs:
         with:
           node-version: "22"  # Use the appropriate version for your project
         
+      - name: Setup Pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: "10.4.1"  # Use the version you need
+        
       - name: Install Dependencies
         run: pnpm install
-
+        
       - name: Run Build
         id: build
         env:

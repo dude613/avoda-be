@@ -10,6 +10,8 @@ export interface StartTimerBody {
   task: string;
   project?: string; // Optional
   client?: string;  // Optional
+  isPaused?: boolean; // Optional
+  pauseTime?: Date; // Optional
 }
 
 // --- Request Params Interfaces ---

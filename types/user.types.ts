@@ -42,7 +42,7 @@ export interface LoginWithGoogleBody {
 
 // Define the structure of the user object returned in the login response
 export interface LoginResponseUser {
-    id: number;
+    id: string;
     email: string;
     name: string | null; // Assuming name can be null
     picture: string | null; // Assuming picture can be null
@@ -108,7 +108,7 @@ export interface RegisterWithGoogleBody {
 // Define the structure of the successful Google registration response data
 export interface RegisterWithGoogleSuccessData {
     user: {
-        id: number;
+        id: string;
         email: string;
         userName: string | null;
         picture: string | null;

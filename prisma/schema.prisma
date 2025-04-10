@@ -100,6 +100,9 @@ model Timer {
   startTime DateTime
   endTime   DateTime?
   isActive  Boolean   @default(true)
+  isPaused  Boolean   @default(false)
+  totalPausedTime Int @default(0)
+  pauseTime DateTime?
   duration  Int       @default(0)
   createdAt DateTime  @default(now())
 

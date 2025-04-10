@@ -305,7 +305,8 @@ const resumeTimer = async (req: Request, res: Response) => {
     const pauseDuration = Math.floor((resumeTime.getTime() - timer.pauseTime.getTime()) / 1000);
     
     // Calculate the total paused time (existing + current pause duration)
-    const totalPausedTime = (timer.totalPausedTime || 0) + pauseDuration;
+    const existingPausedTime = timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
+    const totalPausedTime = existingPausedTime + pauseDuration;
 
     const updatedTimer = await prisma.timer.update({
       where: {

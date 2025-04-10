@@ -18,7 +18,7 @@ export const validateConcurrentTimers = async (
         message: "Authentication required: User context missing.",
       });
     }
-    const userId = req.user.id;
+    const userId: string = req.user.id;
 
     // Check if user has any active timers
     const activeTimer: Timer | null = await prisma.timer.findFirst({

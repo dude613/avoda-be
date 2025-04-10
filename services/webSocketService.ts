@@ -11,17 +11,8 @@ interface AuthenticatedSocket extends Socket {
     userId?: string;
 }
 
-// Map to store active connections by userId
-// Using WeakMap to allow garbage collection of disconnected sockets
-// Note: Since WeakMap requires objects as keys, we'd need to store differently
 const socketsByUser = new Map<string, Set<AuthenticatedSocket>>();
 
-/**
- * Sets up timer-specific WebSocket functionality using the existing Socket.io instance.
- * Creates a namespace, adds authentication middleware, and handles connections.
- * @param io - The main Socket.io server instance.
- * @returns The created Socket.io Namespace for timers.
- */
 export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
   
   const timerIo: Namespace = io.of("/timers");
@@ -111,16 +102,7 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
 
 /**
  * Broadcasts a message to all active WebSocket connections for a specific user ID.
- * @param userId - The user ID (number) to broadcast to.
- * @param event - The event name (string) to emit.
- */
-/**
- * Broadcasts a message to all active WebSocket connections for a specific user ID.
- * @param userId - The user ID (number) to broadcast to.
- * @param event - The event name (string) to emit.
-/**
- * Broadcasts a message to all active WebSocket connections for a specific user ID.
- * @param userId - The user ID (number) to broadcast to.
+ * @param userId - The user ID (string) to broadcast to.
  * @param event - The event name (string) to emit.
  * @param data - The data payload (any type) to send with the event.
  */

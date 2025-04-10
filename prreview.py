@@ -172,7 +172,7 @@ def main():
     
     if total_diff_size < MIN_DIFF_SIZE:
         print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Posting comment and skipping AI review.")
-        small_diff_comment = f"Skipping AI review: Total diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."
+        small_diff_comment = f"## Skipping AI review\n\nTotal diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."
         try:
             # Fetch existing comments
             comments = get_existing_comments()

@@ -11,17 +11,8 @@ interface AuthenticatedSocket extends Socket {
     userId?: string;
 }
 
-// Map to store active connections by userId
-// Using WeakMap to allow garbage collection of disconnected sockets
-// Note: Since WeakMap requires objects as keys, we'd need to store differently
-const userConnections = new Map<string, Set<AuthenticatedSocket>>();
+const socketsByUser = new Map<string, Set<AuthenticatedSocket>>();
 
-/**
- * Sets up timer-specific WebSocket functionality using the existing Socket.io instance.
- * Creates a namespace, adds authentication middleware, and handles connections.
- * @param io - The main Socket.io server instance.
- * @returns The created Socket.io Namespace for timers.
- */
 export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
   
   const timerIo: Namespace = io.of("/timers");
@@ -81,21 +72,21 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
       console.log(`Timer WebSocket connected for user: ${userId} (Socket ID: ${authSocket.id})`);
 
       
-      if (!userConnections.has(userId)) {
-          userConnections.set(userId, new Set());
+      if (!socketsByUser.has(userId)) {
+          socketsByUser.set(userId, new Set());
       }
-      userConnections.get(userId)?.add(authSocket); 
+      socketsByUser.get(userId)?.add(authSocket);
 
       
       authSocket.on("disconnect", (reason: string) => {
           console.log(`Timer WebSocket disconnected for user: ${userId} (Socket ID: ${authSocket.id}), Reason: ${reason}`);
-          if (userConnections.has(userId)) {
-              const connections = userConnections.get(userId);
+          if (socketsByUser.has(userId)) {
+              const connections = socketsByUser.get(userId);
               if (connections) {
                   connections.delete(authSocket);
-                  
+
                   if (connections.size === 0) {
-                      userConnections.delete(userId);
+                      socketsByUser.delete(userId);
                       console.log(`Removed user ${userId} from active timer connections.`);
                   }
               }
@@ -111,22 +102,22 @@ export const setupTimerWebSockets = (io: SocketIOServer): Namespace => {
 
 /**
  * Broadcasts a message to all active WebSocket connections for a specific user ID.
- * @param userId - The user ID (number) to broadcast to.
+ * @param userId - The user ID (string) to broadcast to.
  * @param event - The event name (string) to emit.
  * @param data - The data payload (any type) to send with the event.
  */
 export const broadcastToUser = (userId: string, event: string, data: any): void => {
-  if (userConnections.has(userId)) {
-    const connections = userConnections.get(userId);
+  if (socketsByUser.has(userId)) {
+    const connections = socketsByUser.get(userId);
     if (connections && connections.size > 0) {
-        console.log(`Broadcasting event '${event}' to user ${userId} (${connections.size} connection(s))`);
-        connections.forEach((socket) => {
-            socket.emit(event, data);
-        });
+      console.log(`Broadcasting event '${event}' to user ${userId} (${connections.size} connection(s))`);
+      connections.forEach((socket: AuthenticatedSocket) => {
+        socket.emit(event, data);
+      });
     } else {
-         console.log(`No active connections found for user ${userId} to broadcast event '${event}'.`);
+      console.log(`No active connections found for user ${userId} to broadcast event '${event}'.`);
     }
   } else {
-      console.log(`User ${userId} not found in active timer connections for event '${event}'.`);
+    console.log(`User ${userId} not found in active timer connections for event '${event}'.`);
   }
 };

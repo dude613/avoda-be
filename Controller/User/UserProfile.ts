@@ -48,7 +48,6 @@ const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/gif"];
 export async function GetProfileData(req: GetProfileDataRequest, res: UserResponse): Promise<void> {
   try {
     const { userId: userIdString } = req.params;
-    console.log(req.params, "gettt");
 
     if (!userIdString) { // Should be caught by route definition, but good practice
         res.status(400).send({ success: false, error: "User ID parameter is required." });

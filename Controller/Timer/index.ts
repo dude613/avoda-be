@@ -1,7 +1,6 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { broadcastToUser } from "../../services/webSocketService.js";
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from 'uuid';
 
 // Extend Request to include user property
 declare global {
@@ -15,7 +14,9 @@ declare global {
   }
 }
 
-export const startTimer = async (req: Request, res: Response) => {
+export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer };
+
+const startTimer = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -30,7 +31,7 @@ export const startTimer = async (req: Request, res: Response) => {
     // Double-check for active timers
     const existingActiveTimer = await prisma.timer.findFirst({
       where: {
-        userId: userId, // Changed from user to userId
+        userId: userId,
         isActive: true,
       },
     });
@@ -46,7 +47,7 @@ export const startTimer = async (req: Request, res: Response) => {
     // Create a new timer
     const newTimer = await prisma.timer.create({
       data: {
-        userId: userId, // Changed from user to userId
+        userId: userId,
         task,
         project,
         client,
@@ -73,7 +74,7 @@ export const startTimer = async (req: Request, res: Response) => {
   }
 };
 
-export const stopTimer = async (req: Request, res: Response) => {
+const stopTimer = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -86,7 +87,7 @@ export const stopTimer = async (req: Request, res: Response) => {
     const timer = await prisma.timer.findFirst({
       where: {
         id: timerId,
-        userId: userId, // Changed from user to userId
+        userId: userId,
         isActive: true,
       },
     });
@@ -131,7 +132,7 @@ export const stopTimer = async (req: Request, res: Response) => {
   }
 };
 
-export const getActiveTimer = async (req: Request, res: Response) => {
+const getActiveTimer = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -140,7 +141,7 @@ export const getActiveTimer = async (req: Request, res: Response) => {
 
     const activeTimer = await prisma.timer.findFirst({
       where: {
-        userId: userId, // Changed from user to userId
+        userId: userId,
         isActive: true,
       },
     });
@@ -160,7 +161,7 @@ export const getActiveTimer = async (req: Request, res: Response) => {
   }
 };
 
-export const getUserTimers = async (req: Request, res: Response) => {
+const getUserTimers = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -181,7 +182,7 @@ export const getUserTimers = async (req: Request, res: Response) => {
 
     const timers = await prisma.timer.findMany({
       where: {
-        userId: userId, // Changed from user to userId
+        userId: userId,
       },
       orderBy: [
         {
@@ -194,7 +195,7 @@ export const getUserTimers = async (req: Request, res: Response) => {
 
     const count = await prisma.timer.count({
       where: {
-        userId: userId, // Changed from user to userId
+        userId: userId,
       },
     });
 
@@ -209,6 +210,127 @@ export const getUserTimers = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch timers",
+      error: error.message,
+    });
+  }
+};
+
+const pauseTimer = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+        isActive: true,
+        isPaused: false,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "No active timer found with the provided ID that is not already paused",
+      });
+    }
+
+    const pauseTime = new Date();
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        isPaused: true,
+        pauseTime: pauseTime,
+      },
+    });
+
+    broadcastToUser(userId, "timer:paused", updatedTimer);
+
+    res.status(200).json({
+      success: true,
+      message: "Timer paused successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error pausing timer:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred in pausing timer",
+      error: error.message,
+    });
+  }
+};
+
+const resumeTimer = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+        isActive: true,
+        isPaused: true,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "No paused timer found with the provided ID",
+      });
+    }
+
+    if (!timer.pauseTime) {
+      return res.status(500).json({
+        success: false,
+        message: "Pause time is missing, cannot resume timer",
+      });
+    }
+
+    const resumeTime = new Date();
+    const pauseDuration = Math.floor((resumeTime.getTime() - timer.pauseTime.getTime()) / 1000);
+    
+    // Calculate the total paused time (existing + current pause duration)
+    const existingPausedTime = timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
+    const totalPausedTime = existingPausedTime + pauseDuration;
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        isPaused: false,
+        pauseTime: null,
+        totalPausedTime: totalPausedTime,
+      },
+    });
+
+    broadcastToUser(userId, "timer:resumed", updatedTimer);
+
+    res.status(200).json({
+      success: true,
+      message: "Timer resumed successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error resuming timer:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred in resuming timer",
       error: error.message,
     });
   }

@@ -248,7 +248,7 @@ export const registerWithGoogle = async (req: RegisterWithGoogleRequest, res: Us
     // Prepare response data
     const responseData: RegisterWithGoogleSuccessData = {
       user: {
-        id: parseInt(user.id),
+        id: user.id,
         email: user.email,
         userName: user.userName,
         picture: user.picture,

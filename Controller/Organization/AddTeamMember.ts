@@ -8,13 +8,18 @@ interface ValidationResponse {
   error?: string;
 }
 
-import { AddMemberInput, ResetLinkInfo, TeamMemberRole } from "../../types/organization.types.js";
-
+import {
+  AddMemberInput,
+  ResetLinkInfo,
+  TeamMemberRole,
+} from "../../types/organization.types.js";
 
 export async function AddTeamMember(req: Request, res: Response) {
   try {
     const { members } = req.body;
-    const validationResponse: ValidationResponse = validate(members as AddMemberInput[]);
+    const validationResponse: ValidationResponse = validate(
+      members as AddMemberInput[]
+    );
     if (!validationResponse.success) {
       return res.status(400).send(validationResponse);
     }
@@ -31,11 +36,13 @@ export async function AddTeamMember(req: Request, res: Response) {
       if (!member) continue;
 
       let { name, email, role, orgId } = member;
-      role = role ? role.toLowerCase() : '';
+      role = role ? role.toLowerCase() : "";
 
       const parsedOrgId = parseInt(orgId);
       if (isNaN(parsedOrgId)) {
-        return res.status(400).send({ success: false, error: `Invalid organization ID: ${orgId}` });
+        return res
+          .status(400)
+          .send({ success: false, error: `Invalid organization ID: ${orgId}` });
       }
 
       const org = await prisma.organization.findUnique({
@@ -44,7 +51,12 @@ export async function AddTeamMember(req: Request, res: Response) {
         },
       });
       if (!org) {
-        return res.status(404).send({ success: false, error: `Organization with ID ${orgId} not found!` });
+        return res
+          .status(404)
+          .send({
+            success: false,
+            error: `Organization with ID ${orgId} not found!`,
+          });
       }
 
       // Check organization's team member capacity
@@ -68,7 +80,12 @@ export async function AddTeamMember(req: Request, res: Response) {
         },
       });
       if (existingTeamMember) {
-        return res.status(400).send({ success: false, error: `User with email ${email} is already a member of this organization!` });
+        return res
+          .status(400)
+          .send({
+            success: false,
+            error: `User with email ${email} is already a member of this organization!`,
+          });
       }
 
       const user = { email, id: org.userId.toString() };
@@ -118,7 +135,7 @@ export async function AddTeamMember(req: Request, res: Response) {
         name: newTeamMember?.name ?? "Team Member",
         email: newTeamMember.email,
         role: newTeamMember.role as TeamMemberRole,
-        resetLink
+        resetLink,
       });
       addedMembers.push(newTeamMember);
     }
@@ -130,15 +147,19 @@ export async function AddTeamMember(req: Request, res: Response) {
     return res.status(200).send({
       success: true,
       message: `Team member(s) added successfully!`,
-      addedMembers
+      addedMembers,
     });
-
   } catch (error: any) {
     console.log("Error adding team members:", error.message);
-    return res.status(500).send({ error: "Internal server error. Please try again!", details:
-    process.env.NODE_ENV === "development" ? error.message : undefined });
+    return res
+      .status(500)
+      .send({
+        error: "Internal server error. Please try again!",
+        details:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
   }
-};
+}
 
 const validate = (members: AddMemberInput[]): ValidationResponse => {
   if (!members || members.length === 0) {
@@ -225,7 +246,9 @@ export async function GetAllTeamMember(req: Request, res: Response) {
   try {
     const { userId } = req.params;
     if (!userId) {
-      return res.status(404).send({ success: false, error: "user id is required" });
+      return res
+        .status(404)
+        .send({ success: false, error: "user id is required" });
     }
 
     const org = await prisma.organization.findFirst({
@@ -235,7 +258,12 @@ export async function GetAllTeamMember(req: Request, res: Response) {
     });
 
     if (!org) {
-      return res.status(404).send({ success: false, error: `Organization with the given user ID not found!` });
+      return res
+        .status(404)
+        .send({
+          success: false,
+          error: `Organization with the given user ID not found!`,
+        });
     }
 
     const teamMembers = await prisma.teamMember.findMany({
@@ -247,14 +275,16 @@ export async function GetAllTeamMember(req: Request, res: Response) {
     return res.status(200).send({
       success: true,
       message: "Team members retrieved successfully!",
-      teamMembers: teamMembers.map(member => ({
+      teamMembers: teamMembers.map((member) => ({
         ...member,
         organizationName: org.name,
       })),
     });
   } catch (error: any) {
     console.log("Error getting team members:", error.message);
-    return res.status(500).send({ error: "Internal server error. Please try again!" });
+    return res
+      .status(500)
+      .send({ error: "Internal server error. Please try again!" });
   }
 }
 
@@ -262,7 +292,9 @@ export const DeleteUser = async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
     if (!userId) {
-      return res.status(400).send({ success: false, error: "User Id required!" });
+      return res
+        .status(400)
+        .send({ success: false, error: "User Id required!" });
     }
 
     const teamMember = await prisma.teamMember.update({
@@ -280,7 +312,9 @@ export const DeleteUser = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.log("Error deleting team members:", error.message);
-    return res.status(500).send({ error: "Internal server error. Please try again!" });
+    return res
+      .status(500)
+      .send({ error: "Internal server error. Please try again!" });
   }
 };
 
@@ -321,10 +355,29 @@ export async function EditTeamMember(req: Request, res: Response) {
       },
     });
 
-    if (!existingTeamMember || existingTeamMember.organizationId !== parsedOrgId) {
+    if (
+      !existingTeamMember ||
+      existingTeamMember.organizationId !== parsedOrgId
+    ) {
       return res.status(404).send({
         success: false,
         error: `Team member with ID ${id} not found in this organization!`, // Use id here
+      });
+    }
+
+    // Check if email already exists for another member in this organization
+    const emailExists = await prisma.teamMember.findFirst({
+      where: {
+        email: email,
+        organizationId: parsedOrgId,
+        id: { not: parseInt(id) }, // Exclude current member
+      },
+    });
+
+    if (emailExists) {
+      return res.status(400).send({
+        success: false,
+        error: `Email ${email} is already used by another member in this organization!`,
       });
     }
 

@@ -104,6 +104,7 @@ model Timer {
   totalPausedTime Int @default(0)
   pauseTime DateTime?
   duration  Int       @default(0)
+  note      String?   @db.VarChar(200)
   createdAt DateTime  @default(now())
 
   @@map("timers")

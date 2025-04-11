@@ -1,15 +1,23 @@
 import sys
 import requests
 import os
+import time
+
 # --- Configuration & Constants (hardcoded) ---
 GITHUB_API_URL = "https://api.github.com"
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-MODEL_NAME = "o3-mini"
-MIN_DIFF_SIZE = 50
+OPENAI_THREAD_URL = "https://api.openai.com/v1/threads"
+OPENAI_ASSISTANT_ID = "asst_JUTY7WIQ6hsKWEKWcVhQL78u"
+MODEL_NAME = "gpt4o-mini"
+MIN_DIFF_SIZE = 75
 
 # Our base prompt without the diff.
 BASE_PROMPT = (
-    "You are a seasoned code reviewer. Please analyze the following cumulative code diff - probably mainly for the backend -  and provide a strong but to the point review for the PR. Only comment on changes directly introduced in the diff — ignore unrelated assumptions or suggestions or hallucinations. Follow these instructions regarding content perfectly, do not hallucinate and ensure that you are following the directions as a whole since they apply to each section. Format your response in Markdown with the following structure:\n\n # PR Code Review Analysis\n\n ## Summary:\n Concisely summarize the changes introduced in the diff. No additional comments. No points about adding todos. No points about changing ENVs. No points about double checking. \n\n ## Changes:\n To the point bullet points listing only functional code changes. Ignore formatting, styling, test updates, or unrelated improvements. Write the file name after the period of each bullet point.\n\n ## Detailed Observations:\n Bullet points listing only functional issues or potential bugs directly introduced in the diff. No generic suggestions (like check accessibility or verify behavior). No points about changing styles/tailwind classes. No points about adding todos. No points about changing ENVs. No points about double checking. No points about changing regex and constants/text changes or updates. \n\n ## Fixes and Improvements:\n Bullet points listing actionable recommendations to take care of any fixes. We are using React19 and TailwindV4 with a Node/Express backend. Only include specific, value-adding improvements or corrections related to core functionalities that appear in the diff. Write the file name after the period of each bullet point. No points about changing regex and constants/text changes. No points about adding todos. Do not mention testing, accessibility, or behavioral verification unless clearly broken in the code diff itself. Do not mention fixes or improvements that contain action to: Verify or Double Check or Confirm That or Check Constants etc. Rate bug fixes, 3 or 5 or 8 or 10. 10 being a super critical - a fix-now urgent bug.\n Lastly, make the markdown fun but proffessional with seperate icons exactly as follows to make it a little more enjoyable to read. Icon for New Features:trophy:. Icon for Updates of/on Existing Features:stars:. Icon for Removals:skull:. Icon for Fixes:rocket:. Icon for Refactoring:wrench:"
+    "You are a seasoned code reviewer. Please analyze the following cumulative code diff - probably mainly for the backend - and provide a strong but to the point review for the PR. Only comment on changes directly introduced in the diff — ignore unrelated assumptions or suggestions or hallucinations. Follow these instructions regarding content perfectly, do not hallucinate and ensure that you are following the directions as a whole since they apply to each section. Format your response in Markdown with the following structure:\r\n\r\n"
+    "# PR Code Review Analysis\r\n\r\n"
+    "## Summary:\r\nConcise summary of the changes introduced in the diff. No additional comments. No points about adding todos. No points about changing ENVs. No points about double checking.\r\n\r\n"
+    "## Changes:\r\nTo the point bullet points listing only functional code changes. Ignore formatting, styling, test updates, or unrelated improvements. Write the file name after the period of each bullet point.\r\n\r\n"
+    "## Detailed Observations:\r\nBullet points listing only functional issues or potential bugs directly introduced in the diff. No generic suggestions (like check accessibility or verify behavior). No points about changing styles or adding todos.\r\n\r\n"
+    "## Fixes and Improvements:\r\nBullet points listing actionable recommendations for fixes. We are using Node/Express/Postgres/Prisma. Only include specific, value-adding improvements or corrections related to core functionalities that appear in the diff. Write the file name for each bullet point at the end in parentheses.\r\n"
 )
 
 # Retrieve configuration from environment variables or hardcoded for local testing
@@ -45,24 +53,48 @@ def calculate_diff_size(diff_text: str):
     removed_count = diff_text.count("\n-")
     return added_count + removed_count
 
-def call_openai_api(prompt: str, openai_api_key: str):
-    """
-    Call OpenAI's API with the provided prompt and return the response text.
-    """
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai_api_key}"
-    }
-    body = {
-        "model": MODEL_NAME,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-    response = requests.post(OPENAI_API_URL, headers=headers, json=body)
+def create_thread():
+    """Create a new thread with the OpenAI assistant."""
+    response = requests.post(OPENAI_THREAD_URL, headers=openai_headers(), json={})
     response.raise_for_status()
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+    return response.json()["id"]
+
+def add_message(thread_id, content):
+    """Add a message to the OpenAI thread."""
+    url = f"{OPENAI_THREAD_URL}/{thread_id}/messages"
+    response = requests.post(url, headers=openai_headers(), json={"role": "user", "content": content})
+    response.raise_for_status()
+
+def run_assistant(thread_id):
+    """Run the assistant for the given thread."""
+    url = f"{OPENAI_THREAD_URL}/{thread_id}/runs"
+    response = requests.post(url, headers=openai_headers(), json={"assistant_id": OPENAI_ASSISTANT_ID})
+    response.raise_for_status()
+    return response.json()["id"]
+
+def wait_for_completion(thread_id, run_id):
+    """Wait for the assistant run to complete."""
+    url = f"{OPENAI_THREAD_URL}/{thread_id}/runs/{run_id}"
+    while True:
+        response = requests.get(url, headers=openai_headers())
+        status = response.json()["status"]
+        if status in ["completed", "failed"]:
+            return status
+        time.sleep(2)
+
+def fetch_response(thread_id):
+    """Fetch the response from the assistant."""
+    url = f"{OPENAI_THREAD_URL}/{thread_id}/messages"
+    response = requests.get(url, headers=openai_headers())
+    return response.json()["data"][0]["content"][0]["text"]["value"]
+
+def openai_headers():
+    """Return the headers required for OpenAI API calls."""
+    return {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+    }
 
 def get_existing_comments():
     """
@@ -85,17 +117,6 @@ def find_existing_pr_review_comment(comments):
     """
     for comment in comments:
         if "Detailed Observations:" in comment["body"]:
-            return comment["id"]
-    return None
-
-def find_existing_small_diff_comment(comments):
-    """
-    Check for an existing comment indicating the diff was too small.
-    Returns the comment ID if found, otherwise returns None.
-    """
-    search_text = "Skipping AI review:"
-    for comment in comments:
-        if search_text in comment["body"]:
             return comment["id"]
     return None
 
@@ -135,6 +156,9 @@ def save_review_to_file(filename: str, content: str):
     print(f"Saved review to {filename}")
 
 def main():
+    """
+    Main function to perform the PR review process.
+    """
     print(f"Fetching changed files for PR #{PR_NUMBER} in {OWNER}/{REPO}...")
     files = get_changed_files(OWNER, REPO, int(PR_NUMBER), GITHUB_TOKEN)
 
@@ -142,7 +166,9 @@ def main():
     ignore_extensions = (
         '.yml', '.css', '.json', '.lock', '.env', '.txt', 
         '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', 
-        '.ttf', '.woff', '.woff2', '.eot', '.otf', '.webp', '.md', '.htm', '.xml', '.jsonld', '.csv', '.yaml', '.yml', '.toml'
+        '.ttf', '.woff', '.woff2', '.eot', '.otf', '.webp', 
+        '.md', '.htm', '.xml', '.jsonld', '.csv', '.yaml', 
+        '.yml', '.toml'
     )
 
     aggregated_diff = ""
@@ -164,60 +190,35 @@ def main():
 
         # Append a header for each file to clearly separate diffs.
         aggregated_diff += f"\n### File: {filename}\n{patch}\n"
-        total_diff_size += calculate_diff_size(patch)
+        total_diff_size += calculate_diff_size(patch) # Accumulate total diff size
 
     if not aggregated_diff.strip():
         print("No applicable diffs found to review.")
         return
-    
+
     if total_diff_size < MIN_DIFF_SIZE:
         print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Posting comment and skipping AI review.")
-        small_diff_comment = f"## Skipping AI review\n\nTotal diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."
+        small_diff_comment = f"Skipping AI review: Total diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."
         try:
-            # Fetch existing comments
-            comments = get_existing_comments()
-            # Find if a "too small" comment already exists
-            existing_small_comment_id = find_existing_small_diff_comment(comments)
-            if existing_small_comment_id:
-                print(f"Found existing 'too small' comment {existing_small_comment_id}. Deleting it...")
-                delete_existing_comment(existing_small_comment_id)
-            
-            # Post the new comment
             post_comment(small_diff_comment)
             print("Posted comment indicating diff is too small.")
         except Exception as e:
-            print(f"Error finding/deleting/posting 'too small' comment: {e}")
-        return
+            print(f"Error posting 'too small' comment: {e}")
+        return  # Exit after posting the comment
 
     # Create the prompt for the entire PR
-    prompt = BASE_PROMPT + aggregated_diff
-    print("Sending aggregated diff to OpenAI API...")
-    try:
-        review_response = call_openai_api(prompt, OPENAI_API_KEY)
-    except Exception as e:
-        print(f"Error calling OpenAI API: {e}")
-        return
+    print("Creating thread and sending diff to assistant...")
+    thread_id = create_thread()
+    add_message(thread_id, BASE_PROMPT + "\n\n" + aggregated_diff)
+    run_id = run_assistant(thread_id)
+    status = wait_for_completion(thread_id, run_id)
 
-    output_filename = "pr_review_summary.txt"
-    save_review_to_file(output_filename, review_response)
-
-    # Fetch the list of comments and check if an existing review comment exists
-    comments = get_existing_comments()
-    existing_comment_id = find_existing_pr_review_comment(comments)
-
-    if existing_comment_id:
-        print(f"Found existing PR review comment {existing_comment_id}. Deleting it...")
-        delete_existing_comment(existing_comment_id)
-
-    print("Posting review comment...")
-    post_comment(review_response)
-
-    if os.path.exists(output_filename):
-        print("Logging AI PR Review...")
-        with open(output_filename, "r") as f:
-            print(f.read())
+    if status == "completed":
+        review = fetch_response(thread_id)
+        post_comment(review)
+        print("Review posted successfully.")
     else:
-        print("No AI PR Review found.")
+        print("Assistant run failed.")
 
 if __name__ == "__main__":
     main()

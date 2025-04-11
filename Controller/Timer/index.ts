@@ -14,7 +14,16 @@ declare global {
   }
 }
 
-export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer, updateTimerNote, deleteTimerNote };
+export {
+  startTimer,
+  stopTimer,
+  getActiveTimer,
+  getUserTimers,
+  pauseTimer,
+  resumeTimer,
+  updateTimerNote,
+  deleteTimerNote,
+};
 
 const startTimer = async (req: Request, res: Response) => {
   try {
@@ -23,9 +32,11 @@ const startTimer = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { task, project, client , note} = req.body;
+    const { task, project, client, note } = req.body;
     if (!task) {
-      return res.status(400).json({ success: false, message: "Task field is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Task field is required" });
     }
 
     // Double-check for active timers
@@ -39,7 +50,8 @@ const startTimer = async (req: Request, res: Response) => {
     if (existingActiveTimer) {
       return res.status(409).json({
         success: false,
-        message: "You already have an active timer. Please stop the current timer before starting a new one.",
+        message:
+          "You already have an active timer. Please stop the current timer before starting a new one.",
         activeTimer: existingActiveTimer,
       });
     }
@@ -83,7 +95,7 @@ const stopTimer = async (req: Request, res: Response) => {
     }
 
     const { timerId } = req.params;
-    
+
     // Find the active timer
     const timer = await prisma.timer.findFirst({
       where: {
@@ -102,7 +114,9 @@ const stopTimer = async (req: Request, res: Response) => {
 
     // Calculate duration and update timer
     const endTime = new Date();
-    const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
+    const duration = Math.floor(
+      (endTime.getTime() - timer.startTime.getTime()) / 1000
+    ); // Duration in seconds
 
     const updatedTimer = await prisma.timer.update({
       where: {
@@ -168,17 +182,47 @@ const getUserTimers = async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    
-    const { page = 1, limit = 10, sortBy, sortOrder, project, client, startDate, endDate, task } = req.query;
+
+    const {
+      page = 1,
+      limit = 10,
+      sortBy,
+      sortOrder,
+      project,
+      client,
+      startDate,
+      endDate,
+      task,
+    } = req.query;
+
+    // Validate sortBy parameter
+    const validSortFields = [
+      "startTime",
+      "endTime",
+      "task",
+      "project",
+      "client",
+      "duration",
+      "createdAt",
+    ];
+    if (sortBy && !validSortFields.includes(sortBy as string)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid sort field" });
+    }
 
     const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
-      return res.status(400).json({ success: false, message: "Invalid page number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid page number" });
     }
 
     const parsedLimit = parseInt(limit as string);
     if (isNaN(parsedLimit)) {
-      return res.status(400).json({ success: false, message: "Invalid limit number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid limit number" });
     }
 
     const where: any = {
@@ -197,7 +241,7 @@ const getUserTimers = async (req: Request, res: Response) => {
     if (task) {
       where.task = {
         contains: task as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -222,10 +266,20 @@ const getUserTimers = async (req: Request, res: Response) => {
           },
         ];
       } else {
-        where.startTime = {
-          gte: new Date(startDate as string),
-          lte: new Date(endDate as string),
-        };
+        where.OR = [
+          {
+            startTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+          {
+            endTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+        ];
       }
     } else if (startDate) {
       where.startTime = {
@@ -239,15 +293,15 @@ const getUserTimers = async (req: Request, res: Response) => {
 
     const orderBy: any = {};
     if (sortBy) {
-      orderBy[sortBy as string] = sortOrder === 'asc' ? 'asc' : 'desc';
+      orderBy[sortBy as string] = sortOrder === "asc" ? "asc" : "desc";
     } else {
-      orderBy.startTime = 'desc';
+      orderBy.startTime = "desc";
     }
 
     const timers = await prisma.timer.findMany({
       where: where,
       orderBy: [orderBy],
-      skip: ((parsedPage - 1) * parsedLimit),
+      skip: (parsedPage - 1) * parsedLimit,
       take: parsedLimit,
     });
 
@@ -292,7 +346,8 @@ const pauseTimer = async (req: Request, res: Response) => {
     if (!timer) {
       return res.status(404).json({
         success: false,
-        message: "No active timer found with the provided ID that is not already paused",
+        message:
+          "No active timer found with the provided ID that is not already paused",
       });
     }
 
@@ -453,10 +508,13 @@ const resumeTimer = async (req: Request, res: Response) => {
     }
 
     const resumeTime = new Date();
-    const pauseDuration = Math.floor((resumeTime.getTime() - timer.pauseTime.getTime()) / 1000);
-    
+    const pauseDuration = Math.floor(
+      (resumeTime.getTime() - timer.pauseTime.getTime()) / 1000
+    );
+
     // Calculate the total paused time (existing + current pause duration)
-    const existingPausedTime = timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
+    const existingPausedTime =
+      timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
     const totalPausedTime = existingPausedTime + pauseDuration;
 
     const updatedTimer = await prisma.timer.update({

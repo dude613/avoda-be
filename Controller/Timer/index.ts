@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer };
+export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer, updateTimerNote, deleteTimerNote };
 
 const startTimer = async (req: Request, res: Response) => {
   try {
@@ -23,11 +23,11 @@ const startTimer = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { task, project, client } = req.body;
+    const { task, project, client , note} = req.body;
     if (!task) {
       return res.status(400).json({ success: false, message: "Task field is required" });
     }
-    
+
     // Double-check for active timers
     const existingActiveTimer = await prisma.timer.findFirst({
       where: {
@@ -35,7 +35,7 @@ const startTimer = async (req: Request, res: Response) => {
         isActive: true,
       },
     });
-    
+
     if (existingActiveTimer) {
       return res.status(409).json({
         success: false,
@@ -43,7 +43,7 @@ const startTimer = async (req: Request, res: Response) => {
         activeTimer: existingActiveTimer,
       });
     }
-    
+
     // Create a new timer
     const newTimer = await prisma.timer.create({
       data: {
@@ -51,6 +51,7 @@ const startTimer = async (req: Request, res: Response) => {
         task,
         project,
         client,
+        note,
         startTime: new Date(),
         isActive: true,
       },
@@ -168,7 +169,7 @@ const getUserTimers = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
     
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, sortBy, sortOrder, project, client, startDate, endDate, task } = req.query;
 
     const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
@@ -180,23 +181,78 @@ const getUserTimers = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Invalid limit number" });
     }
 
+    const where: any = {
+      userId: userId,
+      isActive: false,
+    };
+
+    if (project) {
+      where.project = project as string;
+    }
+
+    if (client) {
+      where.client = client as string;
+    }
+
+    if (task) {
+      where.task = {
+        contains: task as string,
+        mode: 'insensitive',
+      };
+    }
+
+    if (startDate && endDate) {
+      if (startDate === endDate) {
+        const startOfDay = new Date(startDate as string);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(startDate as string);
+        endOfDay.setHours(23, 59, 59, 999);
+        where.OR = [
+          {
+            startTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          {
+            endTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        ];
+      } else {
+        where.startTime = {
+          gte: new Date(startDate as string),
+          lte: new Date(endDate as string),
+        };
+      }
+    } else if (startDate) {
+      where.startTime = {
+        gte: new Date(startDate as string),
+      };
+    } else if (endDate) {
+      where.startTime = {
+        lte: new Date(endDate as string),
+      };
+    }
+
+    const orderBy: any = {};
+    if (sortBy) {
+      orderBy[sortBy as string] = sortOrder === 'asc' ? 'asc' : 'desc';
+    } else {
+      orderBy.startTime = 'desc';
+    }
+
     const timers = await prisma.timer.findMany({
-      where: {
-        userId: userId,
-      },
-      orderBy: [
-        {
-          startTime: 'desc',
-        },
-      ],
+      where: where,
+      orderBy: [orderBy],
       skip: ((parsedPage - 1) * parsedLimit),
       take: parsedLimit,
     });
 
     const count = await prisma.timer.count({
-      where: {
-        userId: userId,
-      },
+      where: where,
     });
 
     res.status(200).json({
@@ -264,6 +320,108 @@ const pauseTimer = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "An error occurred in pausing timer",
+      error: error.message,
+    });
+  }
+};
+
+const updateTimerNote = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+    const { note } = req.body;
+
+    if (note && note.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Note cannot be longer than 200 characters",
+      });
+    }
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        note: note,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer note updated successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error updating timer note:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update timer note",
+      error: error.message,
+    });
+  }
+};
+
+const deleteTimerNote = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        note: null,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer note deleted successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error deleting timer note:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete timer note",
       error: error.message,
     });
   }

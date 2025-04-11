@@ -88,6 +88,17 @@ def find_existing_pr_review_comment(comments):
             return comment["id"]
     return None
 
+def find_existing_small_diff_comment(comments):
+    """
+    Check for an existing comment indicating the diff was too small.
+    Returns the comment ID if found, otherwise returns None.
+    """
+    search_text = "Skipping AI review:"
+    for comment in comments:
+        if search_text in comment["body"]:
+            return comment["id"]
+    return None
+
 def delete_existing_comment(comment_id):
     """
     Delete an existing PR review comment with the given comment ID.
@@ -160,7 +171,22 @@ def main():
         return
     
     if total_diff_size < MIN_DIFF_SIZE:
-        print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Skipping AI review.")
+        print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Posting comment and skipping AI review.")
+        small_diff_comment = f"## Skipping AI review\n\nTotal diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."
+        try:
+            # Fetch existing comments
+            comments = get_existing_comments()
+            # Find if a "too small" comment already exists
+            existing_small_comment_id = find_existing_small_diff_comment(comments)
+            if existing_small_comment_id:
+                print(f"Found existing 'too small' comment {existing_small_comment_id}. Deleting it...")
+                delete_existing_comment(existing_small_comment_id)
+            
+            # Post the new comment
+            post_comment(small_diff_comment)
+            print("Posted comment indicating diff is too small.")
+        except Exception as e:
+            print(f"Error finding/deleting/posting 'too small' comment: {e}")
         return
 
     # Create the prompt for the entire PR

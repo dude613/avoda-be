@@ -207,23 +207,15 @@ const getUserTimers = async (req: Request, res: Response) => {
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(startDate as string);
         endOfDay.setHours(23, 59, 59, 999);
-        where.OR = [
-          {
-            startTime: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-          {
-            endTime: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-        ];
+        where.startTime = {
+          gte: startOfDay,
+          lte: endOfDay,
+        };
       } else {
         where.startTime = {
           gte: new Date(startDate as string),
+        };
+        where.endTime = {
           lte: new Date(endDate as string),
         };
       }
@@ -232,7 +224,7 @@ const getUserTimers = async (req: Request, res: Response) => {
         gte: new Date(startDate as string),
       };
     } else if (endDate) {
-      where.startTime = {
+      where.endTime = {
         lte: new Date(endDate as string),
       };
     }
@@ -334,6 +326,13 @@ const updateTimerNote = async (req: Request, res: Response) => {
 
     const { timerId } = req.params;
     const { note } = req.body;
+
+    if (note && note.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: "Note cannot be longer than 200 characters",
+      });
+    }
 
     const timer = await prisma.timer.findFirst({
       where: {

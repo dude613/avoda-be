@@ -335,13 +335,6 @@ const updateTimerNote = async (req: Request, res: Response) => {
     const { timerId } = req.params;
     const { note } = req.body;
 
-    if (note && note.length > 200) {
-      return res.status(400).json({
-        success: false,
-        message: "Note cannot be longer than 200 characters",
-      });
-    }
-
     const timer = await prisma.timer.findFirst({
       where: {
         id: timerId,

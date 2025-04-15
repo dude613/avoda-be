@@ -1,5 +1,7 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendInvitation } from "../../Components/MailerComponents/SendInvitation.js";
+import { EditTeamMemberTemplate } from "../../Components/MailerComponents/EditTeamMemberTemplate.js";
+import { DeleteTeamMemberTemplate } from "../../Components/MailerComponents/DeleteTeamMemberTemplate.js";
 import { generateAccessToken } from "../../Components/VerifyAccessToken.js";
 import { Request, Response } from "express";
 
@@ -13,6 +15,7 @@ import {
   ResetLinkInfo,
   TeamMemberRole,
 } from "../../types/organization.types.js";
+import { UnarchiveTeamMemberTemplate } from "../../Components/MailerComponents/UnarchiveTeamMember.js";
 
 export async function AddTeamMember(req: Request, res: Response) {
   try {
@@ -59,19 +62,19 @@ export async function AddTeamMember(req: Request, res: Response) {
           });
       }
 
-      // Check organization's team member capacity
-      const currentMemberCount = await prisma.teamMember.count({
-        where: {
-          organizationId: parsedOrgId,
-        },
-      });
+      // Check organization's team member capacity - Avi said there should be no limit
+      // const currentMemberCount = await prisma.teamMember.count({
+      //   where: {
+      //     organizationId: parsedOrgId,
+      //   },
+      // });
 
-      if (currentMemberCount >= 1000) {
-        return res.status(400).send({
-          success: false,
-          error: "Organization has reached maximum team member capacity!",
-        });
-      }
+      // if (currentMemberCount >= 1000) {
+      //   return res.status(400).send({
+      //     success: false,
+      //     error: "Organization has reached maximum team member capacity!",
+      //   });
+      // }
 
       const existingTeamMember = await prisma.teamMember.findFirst({
         where: {
@@ -88,20 +91,29 @@ export async function AddTeamMember(req: Request, res: Response) {
           });
       }
 
-      const user = { email, id: org.userId.toString() };
-      const accessToken = generateAccessToken(user);
+      // Create a new user for the team member
+      const newUser = await prisma.user.create({
+        data: {
+          email: email,
+          userName: name,
+          role: role,
+        },
+      });
+
+      const accessToken = generateAccessToken({ email: email, id: newUser.id });
       const resetTokenExpiry = new Date();
       resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 7);
 
       const newTeamMember = await prisma.teamMember.create({
         data: {
+          userId: newUser.id,
+          organizationId: parsedOrgId,
           name,
           email,
           role,
           status: "pending",
           resetToken: accessToken,
           resetTokenExpiry,
-          organizationId: parsedOrgId,
         },
       });
 
@@ -129,7 +141,7 @@ export async function AddTeamMember(req: Request, res: Response) {
 
       const resetLink = `${process.env.FRONTEND_URL}/register/setPassword?email=${encodeURIComponent(
         newTeamMember.email
-      )}&token=${newTeamMember.resetToken}`;
+      )}&token=${newTeamMember.resetToken}&role=${newTeamMember.role}`;
       resetLinks.push({
         orgName: org?.name ?? "Your Organization",
         name: newTeamMember?.name ?? "Team Member",
@@ -159,7 +171,46 @@ export async function AddTeamMember(req: Request, res: Response) {
           process.env.NODE_ENV === "development" ? error.message : undefined,
       });
   }
-}
+};
+
+export const DeleteTeamMemberPermanently = async (req: Request, res: Response) => {
+  try {
+    const { userId, organizationName } = req.params;
+
+    if (!userId) {
+      return res.status(400).send({ success: false, error: "User ID is required!" });
+    }
+    if (!organizationName) {
+      return res.status(400).send({ success: false, error: "Organization  name is required!" });
+    }
+
+    // Find the team member
+    const teamMember = await prisma.teamMember.findUnique({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!teamMember) {
+      return res.status(404).send({ success: false, error: "Team member not found!" });
+    }
+
+    // Delete the team member
+    await prisma.teamMember.delete({
+      where: {
+        userId: userId,
+      },
+    });
+
+    const dateTime = new Date().toLocaleString();
+    await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
+
+    return res.status(200).send({ success: true, message: "Team member deleted successfully!" });
+  } catch (error: any) {
+    console.error("Error deleting team member:", error.message);
+    return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
+  }
+};
 
 const validate = (members: AddMemberInput[]): ValidationResponse => {
   if (!members || members.length === 0) {
@@ -286,25 +337,95 @@ export async function GetAllTeamMember(req: Request, res: Response) {
       .status(500)
       .send({ error: "Internal server error. Please try again!" });
   }
-}
+};
 
-export const DeleteUser = async (req: Request, res: Response) => {
+export const GetArchivedTeamMembers = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.body;
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).send({ success: false, error: "User ID is required!" });
+    }
+
+    const org = await prisma.organization.findFirst({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!org) {
+      return res.status(404).send({ success: false, error: "Organization not found!" });
+    }
+
+    const archivedTeamMembers = await prisma.teamMember.findMany({
+      where: {
+        organizationId: org.id,
+        userDeleteStatus: "archive",
+      },
+    });
+
+    return res.status(200).send({ success: true, archivedTeamMembers });
+  } catch (error: any) {
+    console.error("Error getting archived team members:", error.message);
+    return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
+  }
+};
+
+export const UnarchiveTeamMember = async (req: Request, res: Response) => {
+  try {
+    const { userId, organizationName } = req.params;
+
+    if (!userId) {
+      return res.status(400).send({ success: false, error: "User ID is required!" });
+    }
+
+    if (!organizationName) {
+      return res.status(400).send({ success: false, error: "Organization  name is required!" });
+    }
+
+    const teamMember = await prisma.teamMember.update({
+      where: {
+        userId: userId,
+      },
+      data: {
+        userDeleteStatus: "active",
+      },
+    });
+
+    const dateTime = new Date().toLocaleString();
+    await UnarchiveTeamMemberTemplate(teamMember.email, dateTime, organizationName);
+
+
+    return res.status(200).send({ success: true, message: "Team member unarchived successfully!" });
+  } catch (error: any) {
+    console.error("Error unarchiving team member:", error.message);
+    return res.status(500).send({ success: false, error: "Internal server error. Please try again!" });
+  }
+};
+
+export const ArchiveTeamMember = async (req: Request, res: Response) => {
+  try {
+    console.log(req.body, 'req');
+    const { userId, organizationName } = req.body;
     if (!userId) {
       return res
         .status(400)
         .send({ success: false, error: "User Id required!" });
     }
+    if (!organizationName) {
+      return res.status(400).send({ success: false, error: "Organization  name is required!" });
+    }
 
     const teamMember = await prisma.teamMember.update({
       where: {
-        id: userId,
+        userId: userId,
       },
       data: {
         userDeleteStatus: "archive",
       },
     });
+
+    const dateTime = new Date().toLocaleString();
+    await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
 
     return res.status(200).json({
       success: true,
@@ -320,11 +441,11 @@ export const DeleteUser = async (req: Request, res: Response) => {
 
 export async function EditTeamMember(req: Request, res: Response) {
   try {
-    const { members } = req.body;
+    const { userId, name, email, role, orgId, organizationName } = req.body;
+    console.log(req.body, "members");
 
-    const { id, name, email, role, orgId } = members;
 
-    if (!id || !name || !email || !role || !orgId) {
+    if (!userId || !name || !email || !role || !orgId || !organizationName) {
       return res.status(400).send({
         success: false,
         error: "All fields (id, name, email, role, orgId) are required!",
@@ -348,7 +469,7 @@ export async function EditTeamMember(req: Request, res: Response) {
 
     const existingTeamMember = await prisma.teamMember.findUnique({
       where: {
-        id: parseInt(id),
+        userId: userId,
       },
       include: {
         organization: true,
@@ -361,7 +482,7 @@ export async function EditTeamMember(req: Request, res: Response) {
     ) {
       return res.status(404).send({
         success: false,
-        error: `Team member with ID ${id} not found in this organization!`, // Use id here
+        error: `Team member with ID ${userId} not found in this organization!`, // Use id here
       });
     }
 
@@ -370,7 +491,7 @@ export async function EditTeamMember(req: Request, res: Response) {
       where: {
         email: email,
         organizationId: parsedOrgId,
-        id: { not: parseInt(id) }, // Exclude current member
+        userId: { not: userId }, // Exclude current member
       },
     });
 
@@ -384,7 +505,7 @@ export async function EditTeamMember(req: Request, res: Response) {
     // Update fields
     const updatedTeamMember = await prisma.teamMember.update({
       where: {
-        id: parseInt(id),
+        userId: userId,
       },
       data: {
         name: name,
@@ -392,6 +513,10 @@ export async function EditTeamMember(req: Request, res: Response) {
         role: role.toLowerCase(),
       },
     });
+
+    const dateTime = new Date().toLocaleString();
+    const changes = `Name: ${name}, Email: ${email}, Role: ${role}`;
+    await EditTeamMemberTemplate(updatedTeamMember.email, changes, dateTime, organizationName);
 
     return res.status(200).send({
       success: true,

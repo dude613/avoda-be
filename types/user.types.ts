@@ -201,6 +201,7 @@ export type ValidateProfileUpdateFunction = (req: UpdateProfileDataRequest, res:
 export interface VerifyOtpBody {
     email: string;
     otp: string; // OTP comes as string from body
+    role: string;
 }
 
 export interface ResendOtpBody {

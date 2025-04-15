@@ -141,7 +141,7 @@ export interface AddTeamMemberBody {
     members: AddMemberInput[];
 }
 
-export interface DeleteUserBody {
+export interface ArchiveTeamMemberBody {
     userId: string; // ID of the team member to archive
 }
 
@@ -160,7 +160,7 @@ export interface GetAllTeamMemberParams extends ParamsDictionary {
 
 export type AddTeamMemberRequest = Request<Record<string, never>, any, AddTeamMemberBody, ParsedQs>;
 export type GetAllTeamMemberRequest = Request<GetAllTeamMemberParams, any, any, ParsedQs>;
-export type DeleteUserRequest = Request<Record<string, never>, any, DeleteUserBody, ParsedQs>;
+export type ArchiveTeamMemberRequest = Request<Record<string, never>, any, ArchiveTeamMemberBody, ParsedQs>;
 export type EditTeamMemberRequest = Request<Record<string, never>, any, EditTeamMemberBody, ParsedQs>;
 
 

@@ -96,6 +96,12 @@ export async function UpdateProfileData(req: UpdateProfileDataRequest, res: User
     const updateData: { userName?: string; email?: string; role?: UserRole } = {};
     if (name !== undefined) updateData.userName = name;
     if (email !== undefined) updateData.email = email;
+
+    // Prevent non-admins from changing their role
+    if (role !== undefined && req.user?.role !== 'admin') {
+      res.status(403).send({ success: false, error: "Only admins can change user roles." });
+      return;
+    }
     if (role !== undefined) updateData.role = role;
 
     // Check if there's anything to update

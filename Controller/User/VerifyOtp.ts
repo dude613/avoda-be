@@ -21,6 +21,7 @@ import {
     ValidateEmailInputMiddleware
 } from "../../types/user.types.js"; // Adjust path/extension if needed
 import { User as PrismaUser, Otp as PrismaOtp } from '@prisma/client'; // Import Prisma types
+import { TeamMemberRole } from "../../types/organization.types.js";
 
 // Destructure constants with defaults
 const {
@@ -114,7 +115,7 @@ const validateEmailInput: ValidateEmailInputMiddleware = (req: Request, res: Res
 export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promise<void> {
   try {
     // Input already validated by middleware (validateOtpInput)
-    const { email, otp } = req.body;
+    const { email, otp, role } = req.body;
 
     const user: PrismaUser | null = await prisma.user.findUnique({
       where: { email: email },
@@ -141,6 +142,7 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
     //FIXME The OTP expiration check happens after the OTP value check. If the OTP is expired but matches, it will return an incorrect error message. Reorder the checks to validate expiration first.
     // Check if OTP record exists, matches, and is not expired
     if (!otpRecord) {
+      console.log(otpRecord, "1111", otp);
       res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }
@@ -151,7 +153,9 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
       return;
     }
     // Now check if OTP matches
-    if (otpRecord.otp !== otp) {
+    const parsedOtpinReocrd = parseInt(otpRecord.otp, 10);
+    if (parsedOtpinReocrd !== parseInt(otp)) {
+      console.log(parsedOtpinReocrd, "22222", otp);
       res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }
@@ -170,6 +174,18 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
         verified: true,
         refreshToken: refreshToken,
         lastLoginAt: new Date(),
+        role: role,
+      },
+    });
+
+    // Update team member status to active
+    await prisma.teamMember.updateMany({
+      where: {
+        email: email,
+      },
+      data: {
+        status: "active",
+        role: role as TeamMemberRole,
       },
     });
 

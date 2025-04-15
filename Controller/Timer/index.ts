@@ -14,7 +14,237 @@ declare global {
   }
 }
 
-export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer, updateTimerNote, deleteTimerNote };
+export {
+  startTimer,
+  stopTimer,
+  getActiveTimer,
+  getUserTimers,
+  pauseTimer,
+  resumeTimer,
+  updateTimerNote,
+  deleteTimerNote,
+  editTimer,
+  deleteTimer,
+};
+
+//Reusable function to check if the timer belongs to the user or to any of his team members
+const isTimerOwnerOrTeamMember = async (
+  timerId?: string,
+  userId?: string,
+  userRole?: string
+) => {
+  console.log(userId, userRole, timerId, "check");
+  if (!userId || !userRole || !timerId) {
+    return false;
+  }
+
+  if (userRole === "admin") {
+    // Check if the timer belongs to a team member
+    const organizations = await prisma.organization.findMany({
+      where: {
+        userId: userId,
+      },
+    });
+    console.log(organizations, "organizations");
+
+    const teamMembers = await prisma.teamMember.findMany({
+      where: {
+        organizationId: {
+          in: organizations.map((org) => org.id),
+        },
+      },
+    });
+    console.log(teamMembers, "teamMembers");
+
+    const teamMemberIds = teamMembers.map((member) => member.userId);
+    console.log(teamMemberIds, "teamMemberIds");
+
+    let timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        OR: [{ userId: userId }, { userId: { in: teamMemberIds } }],
+      },
+    });
+    console.log(timer, "timer-admin");
+    if (!timer) {
+      return false;
+    }
+    return true;
+  } else {
+    let timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+      },
+    });
+    console.log(timer, "timer-employee");
+    if (!timer) {
+      return false;
+    }
+    return true;
+  }
+};
+
+const editTimer = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+    const userRole = req.user?.role;
+
+    const isAuthorized = await isTimerOwnerOrTeamMember(
+      timerId,
+      userId,
+      userRole
+    );
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Timer not found or unauthorized",
+      });
+    }
+
+    const timer = await prisma.timer.findUnique({
+      where: {
+        id: timerId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    // Create a timer history record
+    await prisma.timerHistory.create({
+      data: {
+        timerId: timer.id,
+        userId: timer.userId,
+        task: timer.task,
+        project: timer.project,
+        client: timer.client,
+        startTime: timer.startTime,
+        endTime: timer.endTime,
+        isActive: timer.isActive,
+        isPaused: timer.isPaused,
+        totalPausedTime: timer.totalPausedTime,
+        pauseTime: timer.pauseTime,
+        duration: timer.duration,
+        note: timer.note,
+        createdAt: timer.createdAt,
+      },
+    });
+
+    const { task, project, client, note } = req.body;
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        task,
+        project,
+        client,
+        note,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer updated successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error updating timer:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update timer",
+      error: error.message,
+    });
+  }
+};
+
+const deleteTimer = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+    const userRole = req.user?.role;
+
+    const isAuthorized = await isTimerOwnerOrTeamMember(
+      timerId,
+      userId,
+      userRole
+    );
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Timer not found or unauthorized",
+      });
+    }
+
+    const timer = await prisma.timer.findUnique({
+      where: {
+        id: timerId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    // Create a timer history record
+    await prisma.timerHistory.create({
+      data: {
+        timerId: timer.id,
+        userId: timer.userId,
+        task: timer.task,
+        project: timer.project,
+        client: timer.client,
+        startTime: timer.startTime,
+        endTime: timer.endTime,
+        isActive: timer.isActive,
+        isPaused: timer.isPaused,
+        totalPausedTime: timer.totalPausedTime,
+        pauseTime: timer.pauseTime,
+        duration: timer.duration,
+        note: timer.note,
+        createdAt: timer.createdAt,
+      },
+    });
+
+    await prisma.timer.delete({
+      where: {
+        id: timerId,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer deleted successfully",
+    });
+  } catch (error: any) {
+    console.error("Error deleting timer:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete timer",
+      error: error.message,
+    });
+  }
+};
 
 const startTimer = async (req: Request, res: Response) => {
   try {
@@ -23,9 +253,11 @@ const startTimer = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { task, project, client , note} = req.body;
+    const { task, project, client, note } = req.body;
     if (!task) {
-      return res.status(400).json({ success: false, message: "Task field is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Task field is required" });
     }
 
     // Double-check for active timers
@@ -39,7 +271,8 @@ const startTimer = async (req: Request, res: Response) => {
     if (existingActiveTimer) {
       return res.status(409).json({
         success: false,
-        message: "You already have an active timer. Please stop the current timer before starting a new one.",
+        message:
+          "You already have an active timer. Please stop the current timer before starting a new one.",
         activeTimer: existingActiveTimer,
       });
     }
@@ -83,26 +316,59 @@ const stopTimer = async (req: Request, res: Response) => {
     }
 
     const { timerId } = req.params;
-    
-    // Find the active timer
+    const userRole = req.user?.role;
+
+    const isAuthorized = await isTimerOwnerOrTeamMember(
+      timerId,
+      userId,
+      userRole
+    );
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Timer not found or unauthorized",
+      });
+    }
+
     const timer = await prisma.timer.findFirst({
       where: {
         id: timerId,
-        userId: userId,
-        isActive: true,
       },
     });
 
     if (!timer) {
       return res.status(404).json({
         success: false,
-        message: "No active timer found with the provided ID",
+        message: "Timer not found",
       });
     }
 
     // Calculate duration and update timer
     const endTime = new Date();
-    const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
+    const duration = Math.floor(
+      (endTime.getTime() - timer.startTime.getTime()) / 1000
+    ); // Duration in seconds
+
+    // Create a timer history record
+    await prisma.timerHistory.create({
+      data: {
+        timerId: timer.id,
+        userId: timer.userId,
+        task: timer.task,
+        project: timer.project,
+        client: timer.client,
+        startTime: timer.startTime,
+        endTime: timer.endTime,
+        isActive: timer.isActive,
+        isPaused: timer.isPaused,
+        totalPausedTime: timer.totalPausedTime,
+        pauseTime: timer.pauseTime,
+        duration: timer.duration,
+        note: timer.note,
+        createdAt: timer.createdAt,
+      },
+    });
 
     const updatedTimer = await prisma.timer.update({
       where: {
@@ -165,26 +431,72 @@ const getActiveTimer = async (req: Request, res: Response) => {
 const getUserTimers = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
+
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    
-    const { page = 1, limit = 10, sortBy, sortOrder, project, client, startDate, endDate, task } = req.query;
+
+    const {
+      page = 1,
+      limit = 10,
+      sortBy,
+      sortOrder,
+      project,
+      client,
+      startDate,
+      endDate,
+      task,
+    } = req.query;
 
     const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
-      return res.status(400).json({ success: false, message: "Invalid page number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid page number" });
     }
 
     const parsedLimit = parseInt(limit as string);
     if (isNaN(parsedLimit)) {
-      return res.status(400).json({ success: false, message: "Invalid limit number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid limit number" });
     }
 
-    const where: any = {
-      userId: userId,
-      isActive: false,
-    };
+    let where: any = {};
+
+    if (userRole === "admin") {
+      // Get the organizations managed by the admin
+      const organizations = await prisma.organization.findMany({
+        where: {
+          userId: userId,
+        },
+      });
+
+      // Get the team members for those organizations
+      const teamMembers = await prisma.teamMember.findMany({
+        where: {
+          organizationId: {
+            in: organizations.map((org) => org.id),
+          },
+        },
+      });
+
+      // Extract the user IDs of the team members
+      const teamMemberIds = teamMembers.map((member) => member.userId);
+
+      // Fetch timers for all team members
+      where = {
+        OR: [{ userId: userId }, { userId: { in: teamMemberIds } }],
+        isActive: false,
+      };
+    } else {
+      // Fetch only the user's own timers
+      where = {
+        userId: userId,
+        isActive: false,
+      };
+    }
 
     if (project) {
       where.project = project as string;
@@ -197,7 +509,7 @@ const getUserTimers = async (req: Request, res: Response) => {
     if (task) {
       where.task = {
         contains: task as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -214,8 +526,6 @@ const getUserTimers = async (req: Request, res: Response) => {
       } else {
         where.startTime = {
           gte: new Date(startDate as string),
-        };
-        where.endTime = {
           lte: new Date(endDate as string),
         };
       }
@@ -224,22 +534,22 @@ const getUserTimers = async (req: Request, res: Response) => {
         gte: new Date(startDate as string),
       };
     } else if (endDate) {
-      where.endTime = {
+      where.startTime = {
         lte: new Date(endDate as string),
       };
     }
 
     const orderBy: any = {};
     if (sortBy) {
-      orderBy[sortBy as string] = sortOrder === 'asc' ? 'asc' : 'desc';
+      orderBy[sortBy as string] = sortOrder === "asc" ? "asc" : "desc";
     } else {
-      orderBy.startTime = 'desc';
+      orderBy.startTime = "desc";
     }
 
     const timers = await prisma.timer.findMany({
       where: where,
       orderBy: [orderBy],
-      skip: ((parsedPage - 1) * parsedLimit),
+      skip: (parsedPage - 1) * parsedLimit,
       take: parsedLimit,
     });
 
@@ -284,7 +594,8 @@ const pauseTimer = async (req: Request, res: Response) => {
     if (!timer) {
       return res.status(404).json({
         success: false,
-        message: "No active timer found with the provided ID that is not already paused",
+        message:
+          "No active timer found with the provided ID that is not already paused",
       });
     }
 
@@ -326,15 +637,22 @@ const updateTimerNote = async (req: Request, res: Response) => {
 
     const { timerId } = req.params;
     const { note } = req.body;
+    const userRole = req.user?.role;
 
-    if (note && note.length > 200) {
-      return res.status(400).json({
+    const isAuthorized = await isTimerOwnerOrTeamMember(
+      timerId,
+      userId,
+      userRole
+    );
+
+    if (!isAuthorized) {
+      return res.status(403).json({
         success: false,
-        message: "Note cannot be longer than 200 characters",
+        message: "Timer not found or unauthorized",
       });
     }
 
-    const timer = await prisma.timer.findFirst({
+    let timer = await prisma.timer.findFirst({
       where: {
         id: timerId,
         userId: userId,
@@ -342,11 +660,66 @@ const updateTimerNote = async (req: Request, res: Response) => {
     });
 
     if (!timer) {
-      return res.status(404).json({
-        success: false,
-        message: "Timer not found",
-      });
+      if (userRole === "admin") {
+        // Check if the timer belongs to a team member
+        const organizations = await prisma.organization.findMany({
+          where: {
+            userId: userId,
+          },
+        });
+
+        const teamMembers = await prisma.teamMember.findMany({
+          where: {
+            organizationId: {
+              in: organizations.map((org) => org.id),
+            },
+          },
+        });
+
+        const teamMemberIds = teamMembers.map((member) => member.userId);
+
+        timer = await prisma.timer.findFirst({
+          where: {
+            id: timerId,
+            userId: {
+              in: teamMemberIds,
+            },
+          },
+        });
+
+        if (!timer) {
+          return res.status(404).json({
+            success: false,
+            message: "Timer not found for any team member",
+          });
+        }
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Timer not found",
+        });
+      }
     }
+
+    // Create a timer history record
+    await prisma.timerHistory.create({
+      data: {
+        timerId: timer.id,
+        userId: timer.userId,
+        task: timer.task,
+        project: timer.project,
+        client: timer.client,
+        startTime: timer.startTime,
+        endTime: timer.endTime,
+        isActive: timer.isActive,
+        isPaused: timer.isPaused,
+        totalPausedTime: timer.totalPausedTime,
+        pauseTime: timer.pauseTime,
+        duration: timer.duration,
+        note: note,
+        createdAt: timer.createdAt,
+      },
+    });
 
     const updatedTimer = await prisma.timer.update({
       where: {
@@ -380,8 +753,9 @@ const deleteTimerNote = async (req: Request, res: Response) => {
     }
 
     const { timerId } = req.params;
+    const userRole = req.user?.role;
 
-    const timer = await prisma.timer.findFirst({
+    let timer = await prisma.timer.findFirst({
       where: {
         id: timerId,
         userId: userId,
@@ -389,11 +763,66 @@ const deleteTimerNote = async (req: Request, res: Response) => {
     });
 
     if (!timer) {
-      return res.status(404).json({
-        success: false,
-        message: "Timer not found",
-      });
+      if (userRole === "admin") {
+        // Check if the timer belongs to a team member
+        const organizations = await prisma.organization.findMany({
+          where: {
+            userId: userId,
+          },
+        });
+
+        const teamMembers = await prisma.teamMember.findMany({
+          where: {
+            organizationId: {
+              in: organizations.map((org) => org.id),
+            },
+          },
+        });
+
+        const teamMemberIds = teamMembers.map((member) => member.userId);
+
+        timer = await prisma.timer.findFirst({
+          where: {
+            id: timerId,
+            userId: {
+              in: teamMemberIds,
+            },
+          },
+        });
+
+        if (!timer) {
+          return res.status(404).json({
+            success: false,
+            message: "Timer not found for any team member",
+          });
+        }
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Timer not found",
+        });
+      }
     }
+
+    // Create a timer history record
+    await prisma.timerHistory.create({
+      data: {
+        timerId: timer.id,
+        userId: timer.userId,
+        task: timer.task,
+        project: timer.project,
+        client: timer.client,
+        startTime: timer.startTime,
+        endTime: timer.endTime,
+        isActive: timer.isActive,
+        isPaused: timer.isPaused,
+        totalPausedTime: timer.totalPausedTime,
+        pauseTime: timer.pauseTime,
+        duration: timer.duration,
+        note: timer.note,
+        createdAt: timer.createdAt,
+      },
+    });
 
     const updatedTimer = await prisma.timer.update({
       where: {
@@ -452,10 +881,13 @@ const resumeTimer = async (req: Request, res: Response) => {
     }
 
     const resumeTime = new Date();
-    const pauseDuration = Math.floor((resumeTime.getTime() - timer.pauseTime.getTime()) / 1000);
-    
+    const pauseDuration = Math.floor(
+      (resumeTime.getTime() - timer.pauseTime.getTime()) / 1000
+    );
+
     // Calculate the total paused time (existing + current pause duration)
-    const existingPausedTime = timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
+    const existingPausedTime =
+      timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
     const totalPausedTime = existingPausedTime + pauseDuration;
 
     const updatedTimer = await prisma.timer.update({

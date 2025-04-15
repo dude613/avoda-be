@@ -14,7 +14,16 @@ declare global {
   }
 }
 
-export { startTimer, stopTimer, getActiveTimer, getUserTimers, pauseTimer, resumeTimer };
+export {
+  startTimer,
+  stopTimer,
+  getActiveTimer,
+  getUserTimers,
+  pauseTimer,
+  resumeTimer,
+  updateTimerNote,
+  deleteTimerNote,
+};
 
 const startTimer = async (req: Request, res: Response) => {
   try {
@@ -23,11 +32,13 @@ const startTimer = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { task, project, client } = req.body;
+    const { task, project, client, note } = req.body;
     if (!task) {
-      return res.status(400).json({ success: false, message: "Task field is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Task field is required" });
     }
-    
+
     // Double-check for active timers
     const existingActiveTimer = await prisma.timer.findFirst({
       where: {
@@ -35,15 +46,16 @@ const startTimer = async (req: Request, res: Response) => {
         isActive: true,
       },
     });
-    
+
     if (existingActiveTimer) {
       return res.status(409).json({
         success: false,
-        message: "You already have an active timer. Please stop the current timer before starting a new one.",
+        message:
+          "You already have an active timer. Please stop the current timer before starting a new one.",
         activeTimer: existingActiveTimer,
       });
     }
-    
+
     // Create a new timer
     const newTimer = await prisma.timer.create({
       data: {
@@ -51,6 +63,7 @@ const startTimer = async (req: Request, res: Response) => {
         task,
         project,
         client,
+        note,
         startTime: new Date(),
         isActive: true,
       },
@@ -82,7 +95,7 @@ const stopTimer = async (req: Request, res: Response) => {
     }
 
     const { timerId } = req.params;
-    
+
     // Find the active timer
     const timer = await prisma.timer.findFirst({
       where: {
@@ -101,7 +114,9 @@ const stopTimer = async (req: Request, res: Response) => {
 
     // Calculate duration and update timer
     const endTime = new Date();
-    const duration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000); // Duration in seconds
+    const duration = Math.floor(
+      (endTime.getTime() - timer.startTime.getTime()) / 1000
+    ); // Duration in seconds
 
     const updatedTimer = await prisma.timer.update({
       where: {
@@ -167,36 +182,131 @@ const getUserTimers = async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    
-    const { page = 1, limit = 10 } = req.query;
+
+    const {
+      page = 1,
+      limit = 10,
+      sortBy,
+      sortOrder,
+      project,
+      client,
+      startDate,
+      endDate,
+      task,
+    } = req.query;
+
+    // Validate sortBy parameter
+    const validSortFields = [
+      "startTime",
+      "endTime",
+      "task",
+      "project",
+      "client",
+      "duration",
+      "createdAt",
+    ];
+    if (sortBy && !validSortFields.includes(sortBy as string)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid sort field" });
+    }
 
     const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
-      return res.status(400).json({ success: false, message: "Invalid page number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid page number" });
     }
 
     const parsedLimit = parseInt(limit as string);
     if (isNaN(parsedLimit)) {
-      return res.status(400).json({ success: false, message: "Invalid limit number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid limit number" });
+    }
+
+    const where: any = {
+      userId: userId,
+      isActive: false,
+    };
+
+    if (project) {
+      where.project = project as string;
+    }
+
+    if (client) {
+      where.client = client as string;
+    }
+
+    if (task) {
+      where.task = {
+        contains: task as string,
+        mode: "insensitive",
+      };
+    }
+
+    if (startDate && endDate) {
+      if (startDate === endDate) {
+        const startOfDay = new Date(startDate as string);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(startDate as string);
+        endOfDay.setHours(23, 59, 59, 999);
+        where.OR = [
+          {
+            startTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          {
+            endTime: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        ];
+      } else {
+        where.OR = [
+          {
+            startTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+          {
+            endTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+        ];
+      }
+    } else if (startDate) {
+      where.startTime = {
+        gte: new Date(startDate as string),
+      };
+    } else if (endDate) {
+      where.startTime = {
+        lte: new Date(endDate as string),
+      };
+    }
+
+    const orderBy: any = {};
+    if (sortBy) {
+      orderBy[sortBy as string] = sortOrder === "asc" ? "asc" : "desc";
+    } else {
+      orderBy.startTime = "desc";
     }
 
     const timers = await prisma.timer.findMany({
-      where: {
-        userId: userId,
-      },
-      orderBy: [
-        {
-          startTime: 'desc',
-        },
-      ],
-      skip: ((parsedPage - 1) * parsedLimit),
+      where: where,
+      orderBy: [orderBy],
+      skip: (parsedPage - 1) * parsedLimit,
       take: parsedLimit,
     });
 
     const count = await prisma.timer.count({
-      where: {
-        userId: userId,
-      },
+      where: where,
     });
 
     res.status(200).json({
@@ -236,7 +346,8 @@ const pauseTimer = async (req: Request, res: Response) => {
     if (!timer) {
       return res.status(404).json({
         success: false,
-        message: "No active timer found with the provided ID that is not already paused",
+        message:
+          "No active timer found with the provided ID that is not already paused",
       });
     }
 
@@ -264,6 +375,101 @@ const pauseTimer = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "An error occurred in pausing timer",
+      error: error.message,
+    });
+  }
+};
+
+const updateTimerNote = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+    const { note } = req.body;
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        note: note,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer note updated successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error updating timer note:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update timer note",
+      error: error.message,
+    });
+  }
+};
+
+const deleteTimerNote = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { timerId } = req.params;
+
+    const timer = await prisma.timer.findFirst({
+      where: {
+        id: timerId,
+        userId: userId,
+      },
+    });
+
+    if (!timer) {
+      return res.status(404).json({
+        success: false,
+        message: "Timer not found",
+      });
+    }
+
+    const updatedTimer = await prisma.timer.update({
+      where: {
+        id: timerId,
+      },
+      data: {
+        note: null,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Timer note deleted successfully",
+      timer: updatedTimer,
+    });
+  } catch (error: any) {
+    console.error("Error deleting timer note:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete timer note",
       error: error.message,
     });
   }
@@ -302,10 +508,13 @@ const resumeTimer = async (req: Request, res: Response) => {
     }
 
     const resumeTime = new Date();
-    const pauseDuration = Math.floor((resumeTime.getTime() - timer.pauseTime.getTime()) / 1000);
-    
+    const pauseDuration = Math.floor(
+      (resumeTime.getTime() - timer.pauseTime.getTime()) / 1000
+    );
+
     // Calculate the total paused time (existing + current pause duration)
-    const existingPausedTime = timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
+    const existingPausedTime =
+      timer.totalPausedTime === null ? 0 : timer.totalPausedTime;
     const totalPausedTime = existingPausedTime + pauseDuration;
 
     const updatedTimer = await prisma.timer.update({

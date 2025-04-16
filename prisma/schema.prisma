@@ -143,13 +143,21 @@ model Otp {
 }
 
 model Client {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  name      String
-  email     String   @unique
-  phone     String?
-  address   String?
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  address     String?
+  industry    String?
+  billingRate Int
+  notes       String?
+  status      ClientStatus @default(active)
+  projects    Int
 
   @@map("clients")
+}
+
+enum ClientStatus {
+  active
+  archived
 }

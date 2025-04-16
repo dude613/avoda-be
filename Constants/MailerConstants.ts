@@ -7,6 +7,19 @@ interface MailerMessages {
     readonly IGNORE_EMAIL_MESSAGE: string;
 }
 
+interface MailerTeamMember {
+    readonly EDIT_TEAM_MEMBER_SUBJECT: string;
+    readonly EDIT_TEAM_MEMBER_HEADING: string;
+    readonly EDIT_TEAM_MEMBER_DETAILS: string;
+    readonly DELETE_TEAM_MEMBER_SUBJECT: string;
+    readonly DELETE_TEAM_MEMBER_HEADING: string;
+    readonly DELETE_TEAM_MEMBER_DETAILS: string;
+    readonly UNARCHIVE_TEAM_MEMBER_SUBJECT: string;
+    readonly UNARCHIVE_TEAM_MEMBER_HEADING: string;
+    readonly UNARCHIVE_TEAM_MEMBER_DETAILS: string;
+}
+
+
 interface MailerOtp {
     readonly OTP_MESSAGE: string;
     readonly OTP_EXPIRATION_PREFIX: string;
@@ -50,6 +63,7 @@ interface MailerContent {
     readonly verification: MailerVerification;
     readonly reset: MailerReset;
     readonly invitation: MailerInvitation;
+    readonly teamMember: MailerTeamMember;
 }
 
 // Use environment variable with a default
@@ -92,5 +106,16 @@ export const mailerContent: MailerContent = {
         INVITATION_EMAIL_SUPPORT_EMAIL: "support@gmail.com",
         INVITATION_EMAIL_FOOTER_SUB_TEXT: "We look forward to working with you!",
         INVITATION_EMAIL_FOOTER_LINK: `${FRONTEND_URL}/contact`,
+    },
+    teamMember: {
+        EDIT_TEAM_MEMBER_SUBJECT: "Team Member Edited",
+        EDIT_TEAM_MEMBER_HEADING: "Team Member Edited",
+        EDIT_TEAM_MEMBER_DETAILS: "Your account details have been edited by the admin of your organization. Kindly find the changes below:",
+        DELETE_TEAM_MEMBER_SUBJECT: "Team Member Deleted",
+        DELETE_TEAM_MEMBER_HEADING: "Team Member Deleted",
+        DELETE_TEAM_MEMBER_DETAILS: "Your account has been deleted by the admin of your organization.",
+        UNARCHIVE_TEAM_MEMBER_SUBJECT: "Team Member unarchived",
+        UNARCHIVE_TEAM_MEMBER_HEADING: "Team Member unarchived",
+        UNARCHIVE_TEAM_MEMBER_DETAILS: "Your account has been unarchived by the admin of your organization.",
     }
 } as const; // Use 'as const' for immutability and literal types

@@ -101,6 +101,21 @@ export async function Register(req: RegisterRequest, res: UserResponse): Promise
         res.status(400).send({ success: false, error: USER_EMAIL_ALREADY_EXIST });
         return;
       }
+
+      // Check if password is empty
+      if (!user.password) {
+        // Hash the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Update the user with the new password
+        user = await prisma.user.update({
+          where: { email: email },
+          data: {
+            password: hashedPassword,
+          },
+        });
+      }
       // User exists but is not verified, proceed to send OTP again
     } else {
       // User does not exist, create new user

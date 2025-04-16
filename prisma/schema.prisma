@@ -25,6 +25,7 @@ model User {
   resetPasswordExpires DateTime?
   Organization Organization[]
   timers       Timer[]
+  teamMembers  TeamMember[]
 
   @@map("users")
 }
@@ -61,6 +62,8 @@ enum Size {
 
 model TeamMember {
   id               Int              @id @default(autoincrement())
+  userId           String           @unique
+  user             User             @relation(fields: [userId], references: [id])
   organization     Organization     @relation(fields: [organizationId], references: [id])
   organizationId   Int
   name             String?
@@ -108,6 +111,26 @@ model Timer {
   createdAt DateTime  @default(now())
 
   @@map("timers")
+}
+
+model TimerHistory {
+  id        String    @id @default(uuid())
+  timerId   String
+  userId    String
+  task      String
+  project   String?
+  client    String?
+  startTime DateTime
+  endTime   DateTime?
+  isActive  Boolean   @default(true)
+  isPaused  Boolean   @default(false)
+  totalPausedTime Int @default(0)
+  pauseTime DateTime?
+  duration  Int       @default(0)
+  note      String?   @db.VarChar(200)
+  createdAt DateTime  @default(now())
+
+  @@map("timer_history")
 }
 
 model Otp {

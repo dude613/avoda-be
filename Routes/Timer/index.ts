@@ -27,7 +27,7 @@ router.delete("/note/:timerId", authenticate, asyncHandler(deleteTimerNote));
 router.get("/active", authenticate, asyncHandler(getActiveTimer));
 router.get("/", authenticate, asyncHandler(getUserTimers));
 
-router.put("/:timerId", authenticate, asyncHandler(editTimer));
-router.delete("/:timerId", authenticate, asyncHandler(deleteTimer));
+router.put("/edit/:timerId", authenticate, asyncHandler(editTimer));
+router.delete("/delete/:timerId", authenticate, asyncHandler(deleteTimer));
 
 export const timerRoutes: Router = router;

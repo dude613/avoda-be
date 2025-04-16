@@ -142,7 +142,6 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
     //FIXME The OTP expiration check happens after the OTP value check. If the OTP is expired but matches, it will return an incorrect error message. Reorder the checks to validate expiration first.
     // Check if OTP record exists, matches, and is not expired
     if (!otpRecord) {
-      console.log(otpRecord, "1111", otp);
       res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }
@@ -155,7 +154,6 @@ export async function VerifyOtp(req: VerifyOtpRequest, res: UserResponse): Promi
     // Now check if OTP matches
     const parsedOtpinReocrd = parseInt(otpRecord.otp, 10);
     if (parsedOtpinReocrd !== parseInt(otp)) {
-      console.log(parsedOtpinReocrd, "22222", otp);
       res.status(400).send({ success: false, error: USER_INVALID_OTP });
       return;
     }

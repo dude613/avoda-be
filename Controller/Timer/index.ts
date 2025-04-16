@@ -33,7 +33,6 @@ const isTimerOwnerOrTeamMember = async (
   userId?: string,
   userRole?: string
 ) => {
-  console.log(userId, userRole, timerId, "check");
   if (!userId || !userRole || !timerId) {
     return false;
   }
@@ -45,7 +44,6 @@ const isTimerOwnerOrTeamMember = async (
         userId: userId,
       },
     });
-    console.log(organizations, "organizations");
 
     const teamMembers = await prisma.teamMember.findMany({
       where: {
@@ -54,10 +52,8 @@ const isTimerOwnerOrTeamMember = async (
         },
       },
     });
-    console.log(teamMembers, "teamMembers");
 
     const teamMemberIds = teamMembers.map((member) => member.userId);
-    console.log(teamMemberIds, "teamMemberIds");
 
     let timer = await prisma.timer.findFirst({
       where: {
@@ -65,7 +61,6 @@ const isTimerOwnerOrTeamMember = async (
         OR: [{ userId: userId }, { userId: { in: teamMemberIds } }],
       },
     });
-    console.log(timer, "timer-admin");
     if (!timer) {
       return false;
     }
@@ -77,7 +72,6 @@ const isTimerOwnerOrTeamMember = async (
         userId: userId,
       },
     });
-    console.log(timer, "timer-employee");
     if (!timer) {
       return false;
     }

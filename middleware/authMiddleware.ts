@@ -30,7 +30,7 @@ export const authenticate = async (
         success: false,
         message: "Authentication required: No token provided",
       });
-      return; // Return without calling next()
+      return;
     }
 
     const jwtSecret = process.env.JWT_SECRET_KEY;
@@ -40,7 +40,7 @@ export const authenticate = async (
         success: false,
         message: "Server configuration error: JWT_SECRET_KEY missing",
       });
-      return; // Return without calling next()
+      return;
     }
 
     // jwt.verify throws an error if verification fails
@@ -52,7 +52,7 @@ export const authenticate = async (
         success: false,
         message: "Authentication failed: Token payload is missing email",
       });
-      return; // Return without calling next()
+      return;
     }
 
     const user = await prisma.user.findUnique({
@@ -64,7 +64,7 @@ export const authenticate = async (
         success: false,
         message: "Authentication failed: User associated with token not found",
       });
-      return; // Return without calling next()
+      return;
     }
 
     // Attach user to the request object

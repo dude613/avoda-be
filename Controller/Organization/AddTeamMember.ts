@@ -202,6 +202,20 @@ export const DeleteTeamMemberPermanently = async (req: Request, res: Response) =
       },
     });
 
+    // Delete timer records associated with the user
+    await prisma.timer.deleteMany({
+      where: {
+        userId: teamMember.userId,
+      },
+    });
+
+    // Delete the user from the users table
+    await prisma.user.delete({
+      where: {
+        id: teamMember.userId,
+      },
+    });
+
     const dateTime = new Date().toLocaleString();
     await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
 
@@ -404,7 +418,6 @@ export const UnarchiveTeamMember = async (req: Request, res: Response) => {
 
 export const ArchiveTeamMember = async (req: Request, res: Response) => {
   try {
-    console.log(req.body, 'req');
     const { userId, organizationName } = req.body;
     if (!userId) {
       return res
@@ -442,7 +455,6 @@ export const ArchiveTeamMember = async (req: Request, res: Response) => {
 export async function EditTeamMember(req: Request, res: Response) {
   try {
     const { userId, name, email, role, orgId, organizationName } = req.body;
-    console.log(req.body, "members");
 
 
     if (!userId || !name || !email || !role || !orgId || !organizationName) {

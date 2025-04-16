@@ -29,8 +29,8 @@ OrgRoute.post("/skip-organization", verifyAccessToken, asyncHandler(SkipOrganiza
 OrgRoute.get("/organization-list/:userId", verifyAccessToken, asyncHandler(GetOrganization));
 OrgRoute.post("/add-teammember", verifyAccessToken, adminMiddleware, asyncHandler(AddTeamMember));
 OrgRoute.get("/list-teammember/:userId", verifyAccessToken, adminMiddleware, asyncHandler(GetAllTeamMember));
-OrgRoute.post("/user-archived/:organizationName", verifyAccessToken, adminMiddleware, asyncHandler(ArchiveTeamMember));
-OrgRoute.put("/edit-teammember/:organizationName", verifyAccessToken, adminMiddleware, asyncHandler(EditTeamMember));
+OrgRoute.post("/user-archived", verifyAccessToken, adminMiddleware, asyncHandler(ArchiveTeamMember));
+OrgRoute.put("/edit-teammember", verifyAccessToken, adminMiddleware, asyncHandler(EditTeamMember));
 OrgRoute.delete("/delete-teammember/:userId/:organizationName", verifyAccessToken, adminMiddleware, asyncHandler(DeleteTeamMemberPermanently));
 OrgRoute.get("/archived-teammembers/:userId", verifyAccessToken, adminMiddleware, asyncHandler(GetArchivedTeamMembers));
 OrgRoute.put("/unarchive-teammember/:userId/:organizationName", verifyAccessToken, adminMiddleware, asyncHandler(UnarchiveTeamMember));

@@ -1,10 +1,31 @@
-import { Request, Response } from 'express';
-import { prisma } from '../../Components/ConnectDatabase.js';
+import { Request, Response } from "express";
+import { prisma } from "../../Components/ConnectDatabase.js";
 
 export const createClient = async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, address, industry, billingRate, notes, projects } = req.body;
-
+    const {
+      name,
+      email,
+      phone,
+      address,
+      industry,
+      billingRate,
+      notes,
+      projects,
+    } = req.body;
+    // Validate required fields
+    if (
+      !name ||
+      !email ||
+      billingRate === undefined ||
+      projects === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+        data: null,
+      });
+    }
     const newClient = await prisma.client.create({
       data: {
         name,
@@ -12,20 +33,22 @@ export const createClient = async (req: Request, res: Response) => {
         phone,
         address,
         industry,
-        billingRate,
+        billingRate: Number(billingRate),
         notes,
-        projects,
+        projects: Number(projects),
       },
     });
 
     res.status(201).json({
       success: true,
-      message: 'Client created successfully',
+      message: "Client created successfully",
       data: newClient,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to create client', data: null });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to create client", data: null });
   }
 };
 
@@ -35,22 +58,26 @@ export const getClient = async (req: Request, res: Response) => {
 
     const client = await prisma.client.findUnique({
       where: {
-        id: id,
+        id: String(id),
       },
     });
 
     if (!client) {
-      return res.status(404).json({ success: false, message: 'Client not found', data: null });
+      return res
+        .status(404)
+        .json({ success: false, message: "Client not found", data: null });
     }
 
     res.json({
       success: true,
-      message: 'Client retrieved successfully',
+      message: "Client retrieved successfully",
       data: client,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to get client', data: null });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to get client", data: null });
   }
 };
 
@@ -64,27 +91,27 @@ export const getAllClients = async (req: Request, res: Response) => {
     const skip = (pageNumber - 1) * limitNumber;
 
     const where: any = {
-      status: 'active',
+      status: "active",
     };
 
     if (name) {
       where.name = {
         contains: name as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
     if (email) {
       where.email = {
         contains: email as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
     if (industry) {
       where.industry = {
         contains: industry as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -98,7 +125,7 @@ export const getAllClients = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Clients retrieved successfully',
+      message: "Clients retrieved successfully",
       data: {
         clients,
         totalPages: Math.ceil(totalClients / limitNumber),
@@ -107,14 +134,25 @@ export const getAllClients = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to get clients', data: null });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to get clients", data: null });
   }
 };
 
 export const updateClient = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, address, industry, billingRate, notes, projects } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      address,
+      industry,
+      billingRate,
+      notes,
+      projects,
+    } = req.body;
 
     const updatedClient = await prisma.client.update({
       where: {
@@ -134,12 +172,14 @@ export const updateClient = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Client updated successfully',
+      message: "Client updated successfully",
       data: updatedClient,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to update client', data: null });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to update client", data: null });
   }
 };
 
@@ -155,12 +195,14 @@ export const deleteClient = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Client deleted successfully',
+      message: "Client deleted successfully",
       data: null,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to delete client', data: null });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to delete client", data: null });
   }
 };
 
@@ -173,18 +215,24 @@ export const archiveClient = async (req: Request, res: Response) => {
         id: id,
       },
       data: {
-        status: 'archived',
+        status: "archived",
       },
     });
 
     res.json({
       success: true,
-      message: 'Client archived successfully',
+      message: "Client archived successfully",
       data: updatedClient,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to archive client', data: null });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to archive client",
+        data: null,
+      });
   }
 };
 
@@ -197,18 +245,24 @@ export const unarchiveClient = async (req: Request, res: Response) => {
         id: id,
       },
       data: {
-        status: 'active',
+        status: "active",
       },
     });
 
     res.json({
       success: true,
-      message: 'Client unarchived successfully',
+      message: "Client unarchived successfully",
       data: updatedClient,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to unarchive client', data: null });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to unarchive client",
+        data: null,
+      });
   }
 };
 
@@ -222,27 +276,27 @@ export const getArchivedClients = async (req: Request, res: Response) => {
     const skip = (pageNumber - 1) * limitNumber;
 
     const where: any = {
-      status: 'archived',
+      status: "archived",
     };
 
     if (name) {
       where.name = {
         contains: name as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
     if (email) {
       where.email = {
         contains: email as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
     if (industry) {
       where.industry = {
         contains: industry as string,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -256,7 +310,7 @@ export const getArchivedClients = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Archived clients retrieved successfully',
+      message: "Archived clients retrieved successfully",
       data: {
         clients,
         totalPages: Math.ceil(totalClients / limitNumber),
@@ -265,6 +319,12 @@ export const getArchivedClients = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to get archived clients', data: null });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to get archived clients",
+        data: null,
+      });
   }
 };

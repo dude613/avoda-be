@@ -2,19 +2,22 @@
   "name": "av-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "start": "node --import ./instrument.js index.js",
+    "start": "node --import ./dist/instrument.js ./dist/index.js",
     "test": "npm run test ",
+    "build": "tsc",
     "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "6.5.0",
     "@sentry/node": "^9.11.0",
     "@sentry/profiling-node": "^9.11.0",
+    "@types/multer": "^1.4.12",
     "bcryptjs": "^3.0.2",
     "better-auth": "^1.2.3",
     "body-parser": "^1.20.3",
@@ -26,8 +29,6 @@
     "fs": "^0.0.1-security",
     "google-auth-library": "^9.15.1",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.14.2",
-    "mongoose": "^8.12.1",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.10.0",
     "nodemon": "^3.1.9",
@@ -36,6 +37,22 @@
     "resend": "^4.1.2",
     "socket.io": "^4.8.1",
     "start": "^5.1.0",
-    "url": "^0.11.4"
+    "url": "^0.11.4",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/body-parser": "^1.19.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/express-rate-limit": "^6.0.2",
+    "@types/express-serve-static-core": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.14.0",
+    "@types/qs": "^6.9.18",
+    "@types/uuid": "^10.0.0",
+    "prisma": "^6.5.0",
+    "typescript": "^5.8.3"
   }
 }

@@ -141,3 +141,23 @@ model Otp {
 
   @@map("otps")
 }
+
+model Client {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  address     String?
+  industry    String?
+  billingRate Int
+  notes       String?
+  status      ClientStatus @default(active)
+  projects    Int
+
+  @@map("clients")
+}
+
+enum ClientStatus {
+  active
+  archived
+}

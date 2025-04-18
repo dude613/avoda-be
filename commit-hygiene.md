@@ -1,6 +1,6 @@
 # Git Commit Hygiene & Workflow Guide (No Squash, Clean History)
 
-This document outlines how to maintain a clean, readable, and traceable Git history for feature branches **without ever squashing commits** — while keeping PRs clean, focused, and diffable against `staging`.
+This document outlines how to maintain a clean, readable, and traceable Git history for feature branches, keeping PRs clean, focused, and diffable against `staging`.
 
 ## Overview
 

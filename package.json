@@ -5,10 +5,11 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "start": "node --import ./dist/instrument.js ./dist/index.js",
+    "start": "tsc && node --import ./dist/instrument.js ./dist/index.js",
     "test": "npm run test ",
     "build": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:permissions": "node --loader ts-node/esm scripts/seedPermissions.ts"
   },
   "keywords": [],
   "author": "",
@@ -53,6 +54,7 @@
     "@types/qs": "^6.9.18",
     "@types/uuid": "^10.0.0",
     "prisma": "^6.5.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
 }

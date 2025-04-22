@@ -161,3 +161,12 @@ enum ClientStatus {
   active
   archived
 }
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g., "CREATE_TIMER", "DELETE_TIMER"
+  description String?
+  roles       TeamMemberRole[] // Store which roles have this permission
+
+  @@map("permissions")
+}

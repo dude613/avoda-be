@@ -5,7 +5,6 @@ import { CreateOrganizationRequest, SkipOrganizationRequest, UpdateOrganizationR
 export async function CreateOrganization(req: Request, res: Response) {
   try {
     const { userId, organizationName, industry, companySize } = req.body;
-    const userIdInt = parseInt(userId, 10);
     const validationResponse = await validate(req, res);
     if (validationResponse !== true) {
       return;
@@ -164,12 +163,12 @@ const validate = async (req: Request, res: Response) => {
         .status(404)
         .send({ success: false, error: "User ID is required!" });
     }
-    const userIdInt = parseInt(userId, 10);
-    if (isNaN(userIdInt)) {
-      return res
-        .status(400)
-        .send({ success: false, error: "Invalid User ID format!" });
-    }
+    // const userIdInt = parseInt(userId, 10);
+    // if (isNaN(userIdInt)) {
+    //   return res
+    //     .status(400)
+    //     .send({ success: false, error: "Invalid User ID format!" });
+    // }
     if (!organizationName) {
       return res
         .status(404)

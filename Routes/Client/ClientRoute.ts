@@ -10,7 +10,7 @@ router.post('/', authMiddleware, adminMiddleware, asyncHandler(createClient));
 router.put('/:id', authMiddleware, adminMiddleware, asyncHandler(updateClient));
 router.delete('/:id', authMiddleware, adminMiddleware, asyncHandler(deleteClient));
 router.get('/', authMiddleware, asyncHandler(getAllClients));
-router.get('/:id', authMiddleware, asyncHandler(getClient));
+router.get('/client/:id', authMiddleware, asyncHandler(getClient));
 router.put('/:id/archive', authMiddleware, adminMiddleware, asyncHandler(archiveClient));
 router.put('/:id/unarchive', authMiddleware, adminMiddleware, asyncHandler(unarchiveClient));
 router.get('/archived', authMiddleware, adminMiddleware, asyncHandler(getArchivedClients));

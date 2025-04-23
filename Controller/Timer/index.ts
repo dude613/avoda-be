@@ -296,6 +296,22 @@ const getUserTimers = asyncHandler(async (req: Request, res: Response, next: Nex
       endDate,
     } = req.query;
 
+    // Validate sortBy parameter
+    const validSortFields = [
+      "startTime",
+      "endTime",
+      "task",
+      "project",
+      "client",
+      "duration",
+      "createdAt",
+    ];
+    if (sortBy && !validSortFields.includes(sortBy as string)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid sort field" });
+    }
+
     const parsedPage = parseInt(page as string);
     if (isNaN(parsedPage)) {
       return res
@@ -361,10 +377,20 @@ const getUserTimers = asyncHandler(async (req: Request, res: Response, next: Nex
           lte: endOfDay,
         };
       } else {
-        where.startTime = {
-          gte: new Date(startDate as string),
-          lte: new Date(endDate as string),
-        };
+        where.OR = [
+          {
+            startTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+          {
+            endTime: {
+              gte: new Date(startDate as string),
+              lte: new Date(endDate as string),
+            },
+          },
+        ];
       }
     } else if (startDate) {
       where.startTime = {

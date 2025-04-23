@@ -59,15 +59,29 @@ const startTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
+    }
+
+    // Check if the user is archived
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (user?.isArchived) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You cannot start a timer. Please contact your admin",
+      });
     }
 
     // Check if user has permission to create timers
     const canCreateTimer = await hasPermission(userId, "CREATE_TIMER");
     if (!canCreateTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to create timers" 
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You don't have permission to create timers"
       });
     }
 

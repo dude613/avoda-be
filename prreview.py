@@ -203,6 +203,13 @@ def main():
         print("No applicable diffs found to review.")
         return
 
+    # Check if a previous review comment exists
+    comments = get_existing_comments()
+    existing_comment_id = find_existing_pr_review_comment(comments)
+    if existing_comment_id:
+        print(f"Found existing review comment {existing_comment_id}. Deleting...")
+        delete_existing_comment(existing_comment_id)
+
     if total_diff_size < MIN_DIFF_SIZE:
         print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Posting comment and skipping AI review.")
         small_diff_comment = f"Skipping AI review: Total diff size ({total_diff_size} characters) is below the minimum threshold of {MIN_DIFF_SIZE} characters."

@@ -23,6 +23,7 @@ model User {
   otpExpiry    DateTime?
   resetPasswordToken String?
   resetPasswordExpires DateTime?
+  isArchived Boolean @default(false)
   Organization Organization[]
   timers       Timer[]
   teamMembers  TeamMember[]

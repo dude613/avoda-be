@@ -52,10 +52,24 @@ const io = new SocketIOServer(server, { // Use renamed Server type
 const PORT: number = parseInt(process.env.PORT || "8001", 10); // Parse PORT to number
 const BASE_URL: string = process.env.BASE_URL || "http://localhost";
 const FRONTEND_URL: string = process.env.FRONTEND_URL || "http://localhost:3000"; // Default to localhost
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-}));
+const allowedOrigins = [
+    FRONTEND_URL,
+    /\.vercel\.app$/ // Wildcard for any Vercel subdomain (regex)
+  ];
+  
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.some(o =>
+        typeof o === 'string' ? o === origin : o.test(origin)
+      )) {
+        callback(null, true);
+      } else {
+        console.error("Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }));
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

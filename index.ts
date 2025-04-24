@@ -51,7 +51,11 @@ const io = new SocketIOServer(server, { // Use renamed Server type
 // Setup middleware
 const PORT: number = parseInt(process.env.PORT || "8001", 10); // Parse PORT to number
 const BASE_URL: string = process.env.BASE_URL || "http://localhost";
-app.use(cors()); // Consider configuring CORS options more strictly
+const FRONTEND_URL: string = process.env.FRONTEND_URL || "http://localhost:3000"; // Default to localhost
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -73,11 +77,12 @@ app.use(API_BASE_ROUTE, apiRouter);
 
 // Generic error handling middleware (before Sentry)
 const genericErrorHandler: ErrorRequestHandler = (err, req: Request, res: Response, next: NextFunction) => {
-    // Log the error internally
-    console.error("Unhandled Error:", err.message || err);
+    // Log the error internally, including the stack trace and original error
+    console.error("Unhandled Error:", err);
+    console.error("Error Stack Trace:", err.stack);
 
     // Check if Sentry added an error ID to the response
-    const sentryId = res.sentry; // Sentry might attach the event ID here
+    const sentryId = res.sentry;
 
     res.statusCode = 500;
     // Send a generic message to the client

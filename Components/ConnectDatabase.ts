@@ -24,7 +24,7 @@ export async function ConnectDatabase(): Promise<void> {
     } catch (error: unknown) {
       const timestamp = new Date().toISOString();
       console.error(`[${timestamp}] Error connecting to PostgreSQL:`, error instanceof Error ? error.message : String(error));
-      console.log(`Retrying in ${RETRY_DELAY_MS / 1000} seconds...`);
+      console.log(`Retrying in ${RETRY_DELAY_MS / 1000} seconds... ${timestamp}`);
       await sleep(RETRY_DELAY_MS);
     }
   }

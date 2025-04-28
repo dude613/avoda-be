@@ -131,8 +131,15 @@ def delete_existing_comment(comment_id):
         "X-GitHub-Api-Version": "2022-11-28"
     }
     response = requests.delete(url, headers=headers)
-    response.raise_for_status()
-    print(f"Existing comment {comment_id} deleted.")
+    if response.status_code == 204:
+        print(f"Existing comment {comment_id} deleted successfully.")
+    else:
+        print(f"Failed to delete comment {comment_id}. Status code: {response.status_code}")
+        print(f"Response: {response.text}")
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Exception: {e}")
 
 def post_comment(review: str):
     """
@@ -195,6 +202,13 @@ def main():
     if not aggregated_diff.strip():
         print("No applicable diffs found to review.")
         return
+
+    # Check if a previous review comment exists
+    comments = get_existing_comments()
+    existing_comment_id = find_existing_pr_review_comment(comments)
+    if existing_comment_id:
+        print(f"Found existing review comment {existing_comment_id}. Deleting...")
+        delete_existing_comment(existing_comment_id)
 
     if total_diff_size < MIN_DIFF_SIZE:
         print(f"Total diff size ({total_diff_size}) is less than {MIN_DIFF_SIZE}. Posting comment and skipping AI review.")

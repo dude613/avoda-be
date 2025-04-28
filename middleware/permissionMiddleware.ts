@@ -44,7 +44,7 @@ export const hasPermission = (permissionName: string) => {
       }
       
       // Check if the user's role has the required permission
-      const hasRequiredPermission = permission.roles.includes(teamMember.role);
+      const hasRequiredPermission = permission.roles && permission.roles.includes(teamMember.role);
       
       if (!hasRequiredPermission) {
         return res.status(403).json({ 

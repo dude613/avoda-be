@@ -164,7 +164,7 @@ export async function AddTeamMember(req: Request, res: Response) {
     return res
       .status(500)
       .send({
-        error: "Internal server error. Please try again!",
+        error: error.message ?? "Internal server error. Please try again!",
         details:
           process.env.NODE_ENV === "development" ? error.message : undefined,
       });

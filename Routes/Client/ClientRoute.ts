@@ -1,18 +1,36 @@
 import express from 'express';
-import { createClient, updateClient, deleteClient, getAllClients, archiveClient, unarchiveClient, getArchivedClients, getClient } from '../../Controller/Client/ClientController.js';
-import { adminMiddleware } from '../../middleware/adminMiddleware.js';
-import { authenticate as authMiddleware } from '../../middleware/authMiddleware.js';
+import { 
+  createClient, 
+  updateClient, 
+  deleteClient, 
+  getAllClients, 
+  archiveClient, 
+  unarchiveClient, 
+  getArchivedClients, 
+  getClient,
+  assignEmployeesToClient,
+  getAssignedClients,
+  getClientEmployees
+} from '../../Controller/Client/ClientController.js';
+import { authenticate } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { hasClientPermission, hasPermission } from '../../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
-router.post('/', authMiddleware, adminMiddleware, asyncHandler(createClient));
-router.put('/:id', authMiddleware, adminMiddleware, asyncHandler(updateClient));
-router.delete('/:id', authMiddleware, adminMiddleware, asyncHandler(deleteClient));
-router.get('/', authMiddleware, asyncHandler(getAllClients));
-router.get('/client/:id', authMiddleware, asyncHandler(getClient));
-router.put('/:id/archive', authMiddleware, adminMiddleware, asyncHandler(archiveClient));
-router.put('/:id/unarchive', authMiddleware, adminMiddleware, asyncHandler(unarchiveClient));
-router.get('/archived', authMiddleware, adminMiddleware, asyncHandler(getArchivedClients));
+// Client routes
+router.post('/', authenticate, hasPermission('CREATE_CLIENT'), asyncHandler(createClient));
+router.put('/:id', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(updateClient));
+router.delete('/:id', authenticate, hasClientPermission('DELETE_CLIENT'), asyncHandler(deleteClient));
+router.get('/', authenticate, hasPermission('READ_CLIENT'), asyncHandler(getAllClients));
+router.get('/:id', authenticate, hasClientPermission('READ_CLIENT'), asyncHandler(getClient));
+router.put('/:id/archive', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(archiveClient));
+router.put('/:id/unarchive', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(unarchiveClient));
+router.get('/archived', authenticate, hasPermission('READ_CLIENT'), asyncHandler(getArchivedClients));
+
+// New routes for client assignments
+router.post('/employees/:clientId', authenticate, hasPermission('UPDATE_TEAM_MEMBER'), asyncHandler(assignEmployeesToClient));
+router.get('/employees/:clientId', authenticate, hasClientPermission('READ_CLIENT'), asyncHandler(getClientEmployees));
+router.get('/assigned', authenticate, hasPermission('READ_CLIENT'), asyncHandler(getAssignedClients));
 
 export default router;

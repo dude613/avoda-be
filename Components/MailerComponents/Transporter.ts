@@ -10,10 +10,10 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resendEmailUser = process.env.RESEND_EMAIL_USER;
 
 if (!resendApiKey) {
-    throw new Error("RESEND_API_KEY environment variable is not defined.");
+  throw new Error("RESEND_API_KEY environment variable is not defined.");
 }
 if (!resendEmailUser) {
-    throw new Error("RESEND_EMAIL_USER environment variable is not defined.");
+  throw new Error("RESEND_EMAIL_USER environment variable is not defined.");
 }
 
 // Initialize Resend client
@@ -21,17 +21,18 @@ const resend = new Resend(resendApiKey);
 
 // Define an interface for the function parameters for clarity and type safety
 interface TransporterParams {
-    to: string | string[]; // Allow single or multiple recipients
-    subject: string;
-    htmlContent: string;
+  to: string | string[]; // Allow single or multiple recipients
+  subject: string;
+  htmlContent: string;
 }
-
 
 /**
  * @returns The result from the Resend API (CreateEmailResponse).
  * @throws Throws an error if sending fails.
  */
-export const Transporter = async (params: TransporterParams): Promise<CreateEmailResponse> => {
+export const Transporter = async (
+  params: TransporterParams
+): Promise<CreateEmailResponse> => {
   const { to, subject, htmlContent } = params;
   const maxRetries = 3;
   let retryCount = 0;
@@ -62,15 +63,28 @@ export const Transporter = async (params: TransporterParams): Promise<CreateEmai
     } catch (error: unknown) {
       retryCount++;
       lastError = error;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Attempt ${retryCount} failed: Error sending email via Resend:`, errorMessage);
-      // Exponential backoff: wait 2^retryCount * 100 milliseconds
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `Attempt ${retryCount} failed: Error sending email via Resend:`,
+        errorMessage
+      );
+
+      // Only wait if we're going to retry again
+      if (retryCount < maxRetries) {
+        // Exponential backoff: wait 2^retryCount * 100 milliseconds
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, retryCount) * 100)
+        );
+      }
     }
   }
 
   // If all retries failed, throw the last error
-  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  const errorMessage =
+    lastError instanceof Error ? lastError.message : String(lastError);
   console.error("Max retries reached. Email sending failed:", errorMessage);
-  throw new Error(`Failed to send email after ${maxRetries} attempts: ${errorMessage}`);
+  throw new Error(
+    `Failed to send email after ${maxRetries} attempts: ${errorMessage}`
+  );
 };

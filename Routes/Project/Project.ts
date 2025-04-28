@@ -15,10 +15,10 @@ const router = express.Router();
 
 // Project routes
 router.post('/', authenticate, hasPermission('CREATE_PROJECT'), asyncHandler(createProject));
+router.get('/assigned', authenticate, hasPermission('READ_PROJECT'), asyncHandler(getAssignedProjects));
 router.get('/:id', authenticate, hasProjectPermission('READ_PROJECT'), asyncHandler(getProject));
 router.get('/', authenticate, hasPermission('READ_PROJECT'), asyncHandler(getAllProjects));
 router.put('/:id', authenticate, hasProjectPermission('UPDATE_PROJECT'), asyncHandler(updateProject));
 router.delete('/:id', authenticate, hasProjectPermission('DELETE_PROJECT'), asyncHandler(deleteProject));
-router.get('/assigned', authenticate, hasPermission('READ_PROJECT'), asyncHandler(getAssignedProjects));
 
 export const projectRoutes: Router = router;

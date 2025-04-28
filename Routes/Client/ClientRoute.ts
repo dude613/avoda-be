@@ -23,7 +23,7 @@ router.post('/', authenticate, hasPermission('CREATE_CLIENT'), asyncHandler(crea
 router.put('/:id', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(updateClient));
 router.delete('/:id', authenticate, hasClientPermission('DELETE_CLIENT'), asyncHandler(deleteClient));
 router.get('/', authenticate, hasPermission('READ_CLIENT'), asyncHandler(getAllClients));
-router.get('/client/:id', authenticate, hasClientPermission('READ_CLIENT'), asyncHandler(getClient));
+router.get('/:id', authenticate, hasClientPermission('READ_CLIENT'), asyncHandler(getClient));
 router.put('/:id/archive', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(archiveClient));
 router.put('/:id/unarchive', authenticate, hasClientPermission('UPDATE_CLIENT'), asyncHandler(unarchiveClient));
 router.get('/archived', authenticate, hasPermission('READ_CLIENT'), asyncHandler(getArchivedClients));

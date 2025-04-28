@@ -33,33 +33,35 @@ export const createTask = async (req: Request, res: Response) => {
         });
       }
 
-      // Check if the assigned user is assigned to this client
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        select: { clientId: true }
-      });
-
-      if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: "Project not found",
-          data: null
+      // Check if the assigned user is assigned to this client, unless the user is an admin
+      if (req.user?.role !== 'admin') {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { clientId: true }
         });
-      }
 
-      const isUserAssigned = await prisma.clientAssignment.findFirst({
-        where: {
-          userId: assignedTo,
-          clientId: project.clientId
+        if (!project) {
+          return res.status(404).json({
+            success: false,
+            message: "Project not found",
+            data: null
+          });
         }
-      });
 
-      if (!isUserAssigned) {
-        return res.status(403).json({
-          success: false,
-          message: "The assigned user is not assigned to this client",
-          data: null
+        const isUserAssigned = await prisma.clientAssignment.findFirst({
+          where: {
+            userId: assignedTo,
+            clientId: project.clientId
+          }
         });
+
+        if (!isUserAssigned) {
+          return res.status(403).json({
+            success: false,
+            message: "The assigned user is not assigned to this client",
+            data: null
+          });
+        }
       }
     }
 
@@ -108,13 +110,13 @@ export const getTask = async (req: Request, res: Response) => {
             client: true
           }
         },
-            assignedUser: {
-              select: {
-                id: true,
-                userName: true,
-                email: true
-              }
-            }
+        assignedUser: {
+          select: {
+            id: true,
+            userName: true,
+            email: true
+          }
+        }
       }
     });
 
@@ -208,13 +210,13 @@ export const getAllTasks = async (req: Request, res: Response) => {
             }
           }
         },
-            assignedUser: {
-              select: {
-                id: true,
-                userName: true,
-                email: true
-              }
-            }
+        assignedUser: {
+          select: {
+            id: true,
+            userName: true,
+            email: true
+          }
+        }
       },
       orderBy: {
         createdAt: "desc"
@@ -279,34 +281,36 @@ export const updateTask = async (req: Request, res: Response) => {
         });
       }
 
-      // Get the client ID for the project
-      const project = await prisma.project.findUnique({
-        where: { id: projectId || task.projectId },
-        select: { clientId: true }
-      });
-
-      if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: "Project not found",
-          data: null
+      // Check if the assigned user is assigned to this client, unless the user is an admin
+      if (req.user?.role !== 'admin') {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId || task.projectId },
+          select: { clientId: true }
         });
-      }
 
-      // Check if the assigned user is assigned to this client
-      const isUserAssigned = await prisma.clientAssignment.findFirst({
-        where: {
-          userId: assignedTo,
-          clientId: project.clientId
+        if (!project) {
+          return res.status(404).json({
+            success: false,
+            message: "Project not found",
+            data: null
+          });
         }
-      });
 
-      if (!isUserAssigned) {
-        return res.status(403).json({
-          success: false,
-          message: "The assigned user is not assigned to this client",
-          data: null
+        // Check if the assigned user is assigned to this client
+        const isUserAssigned = await prisma.clientAssignment.findFirst({
+          where: {
+            userId: assignedTo,
+            clientId: project.clientId
+          }
         });
+
+        if (!isUserAssigned) {
+          return res.status(403).json({
+            success: false,
+            message: "The assigned user is not assigned to this client",
+            data: null
+          });
+        }
       }
     }
 

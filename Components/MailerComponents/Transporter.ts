@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 // Import the specific response type from resend
-import type { CreateEmailResponse } from 'resend';
+import type { CreateEmailResponse } from "resend";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -33,32 +33,44 @@ interface TransporterParams {
  */
 export const Transporter = async (params: TransporterParams): Promise<CreateEmailResponse> => {
   const { to, subject, htmlContent } = params;
-  try {
-    // The result type is inferred from resend.emails.send
-    const result: CreateEmailResponse = await resend.emails.send({
-      from: resendEmailUser, // Use validated env var
-      to: to,
-      subject: subject,
-      html: htmlContent,
-    });
+  const maxRetries = 3;
+  let retryCount = 0;
+  let lastError: unknown;
 
-   // Check for errors returned in the response payload
-    if (result.error) {
+  while (retryCount < maxRetries) {
+    try {
+      // The result type is inferred from resend.emails.send
+      const result: CreateEmailResponse = await resend.emails.send({
+        from: resendEmailUser, // Use validated env var
+        to: to,
+        subject: subject,
+        html: htmlContent,
+      });
+
+      // Check for errors returned in the response payload
+      if (result.error) {
         console.error("Resend API returned an error:", result.error);
         // Throw an error using the message from the Resend error object
         throw new Error(`Resend API Error: ${result.error.message}`);
-    }
-    if (!result.data?.id) {
+      }
+      if (!result.data?.id) {
         console.error("Resend API did not return an id:", result);
         throw new Error(`Resend API Error: No id returned`);
+      }
+      // Return the successful response object
+      return result;
+    } catch (error: unknown) {
+      retryCount++;
+      lastError = error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Attempt ${retryCount} failed: Error sending email via Resend:`, errorMessage);
+      // Exponential backoff: wait 2^retryCount * 100 milliseconds
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
     }
-    // Return the successful response object
-    return result;
-  } catch (error: unknown) {
-    // Catch network errors or errors thrown from the check above
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error sending email via Resend:", errorMessage);
-    // Re-throw the error or return a structured error object
-    throw new Error(`Failed to send email: ${errorMessage}`);
   }
+
+  // If all retries failed, throw the last error
+  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  console.error("Max retries reached. Email sending failed:", errorMessage);
+  throw new Error(`Failed to send email after ${maxRetries} attempts: ${errorMessage}`);
 };

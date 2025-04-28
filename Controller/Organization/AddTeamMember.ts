@@ -1,7 +1,6 @@
 import { prisma } from "../../Components/ConnectDatabase.js";
 import { SendInvitation } from "../../Components/MailerComponents/SendInvitation.js";
 import { EditTeamMemberTemplate } from "../../Components/MailerComponents/EditTeamMemberTemplate.js";
-import { DeleteTeamMemberTemplate } from "../../Components/MailerComponents/DeleteTeamMemberTemplate.js";
 import { generateAccessToken } from "../../Components/VerifyAccessToken.js";
 import { Request, Response } from "express";
 
@@ -15,7 +14,6 @@ import {
   ResetLinkInfo,
   TeamMemberRole,
 } from "../../types/organization.types.js";
-import { UnarchiveTeamMemberTemplate } from "../../Components/MailerComponents/UnarchiveTeamMember.js";
 
 export async function AddTeamMember(req: Request, res: Response) {
   try {
@@ -166,7 +164,7 @@ export async function AddTeamMember(req: Request, res: Response) {
     return res
       .status(500)
       .send({
-        error: "Internal server error. Please try again!",
+        error: error.message ?? "Internal server error. Please try again!",
         details:
           process.env.NODE_ENV === "development" ? error.message : undefined,
       });
@@ -215,9 +213,9 @@ export const DeleteTeamMemberPermanently = async (req: Request, res: Response) =
         id: teamMember.userId,
       },
     });
-
-    const dateTime = new Date().toLocaleString();
-    await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
+    // remove email notification when a user is deleted
+    // const dateTime = new Date().toLocaleString();
+    // await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
 
     return res.status(200).send({ success: true, message: "Team member deleted successfully!" });
   } catch (error: any) {
@@ -396,7 +394,28 @@ export const UnarchiveTeamMember = async (req: Request, res: Response) => {
       return res.status(400).send({ success: false, error: "Organization  name is required!" });
     }
 
-    const teamMember = await prisma.teamMember.update({
+    const teamMember = await prisma.teamMember.findUnique({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!teamMember) {
+      return res
+        .status(404)
+        .send({ success: false, error: "Team member not found!" });
+    }
+
+    await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isArchived: false,
+      },
+    });
+
+    await prisma.teamMember.update({
       where: {
         userId: userId,
       },
@@ -404,9 +423,9 @@ export const UnarchiveTeamMember = async (req: Request, res: Response) => {
         userDeleteStatus: "active",
       },
     });
-
-    const dateTime = new Date().toLocaleString();
-    await UnarchiveTeamMemberTemplate(teamMember.email, dateTime, organizationName);
+    // remove email notification when a user is unarchived
+    // const dateTime = new Date().toLocaleString();
+    // await UnarchiveTeamMemberTemplate(teamMember.email, dateTime, organizationName);
 
 
     return res.status(200).send({ success: true, message: "Team member unarchived successfully!" });
@@ -428,7 +447,28 @@ export const ArchiveTeamMember = async (req: Request, res: Response) => {
       return res.status(400).send({ success: false, error: "Organization  name is required!" });
     }
 
-    const teamMember = await prisma.teamMember.update({
+   const teamMember = await prisma.teamMember.findUnique({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!teamMember) {
+      return res
+        .status(404)
+        .send({ success: false, error: "Team member not found!" });
+    }
+
+    await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isArchived: true,
+      },
+    });
+
+    await prisma.teamMember.update({
       where: {
         userId: userId,
       },
@@ -436,9 +476,9 @@ export const ArchiveTeamMember = async (req: Request, res: Response) => {
         userDeleteStatus: "archive",
       },
     });
-
-    const dateTime = new Date().toLocaleString();
-    await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
+    // remove email notification when a user is archived
+    // const dateTime = new Date().toLocaleString();
+    // await DeleteTeamMemberTemplate(teamMember.email, dateTime, organizationName);
 
     return res.status(200).json({
       success: true,

@@ -11,23 +11,25 @@ import {
   editTimer,
   deleteTimer,
 } from "../../Controller/Timer/index.js";
-import { asyncHandler } from "../../utils/asyncHandler.js";
 import { authenticate } from "../../middleware/authMiddleware.js";
 import { validateTimerNote } from "../../middleware/validateTimerNote.js";
+import { hasTimerPermission } from "../../middleware/permissionMiddleware.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
 
 const router: Router = express.Router();
 
-// Use the asyncHandler wrapper for all routes
-router.post("/start", authenticate, validateTimerNote, asyncHandler(startTimer));
-router.put("/stop/:timerId", authenticate, asyncHandler(stopTimer));
-router.put("/pause/:timerId", authenticate, asyncHandler(pauseTimer));
-router.put("/resume/:timerId", authenticate, asyncHandler(resumeTimer));
-router.put("/note/:timerId", authenticate, validateTimerNote, asyncHandler(updateTimerNote));
-router.delete("/note/:timerId", authenticate, asyncHandler(deleteTimerNote));
-router.get("/active", authenticate, asyncHandler(getActiveTimer));
-router.get("/", authenticate, asyncHandler(getUserTimers));
+// Use the permission middleware with specific permission names
+router.post("/start", authenticate, validateTimerNote, hasTimerPermission("CREATE_TIMER"), asyncHandler(startTimer));
+router.put("/stop/:timerId", authenticate, hasTimerPermission("UPDATE_TIMER"), asyncHandler(stopTimer));
+router.put("/pause/:timerId", authenticate, hasTimerPermission("UPDATE_TIMER"), asyncHandler(pauseTimer));
+router.put("/resume/:timerId", authenticate, hasTimerPermission("UPDATE_TIMER"), asyncHandler(resumeTimer));
+router.put("/note/:timerId", authenticate, validateTimerNote, hasTimerPermission("UPDATE_TIMER"), asyncHandler(updateTimerNote));
+router.delete("/note/:timerId", authenticate, hasTimerPermission("DELETE_TIMER_NOTE"), asyncHandler(deleteTimerNote));
+router.get("/active", authenticate, hasTimerPermission("READ_TIMER"), asyncHandler(getActiveTimer));
+router.get("/", authenticate, hasTimerPermission("READ_TIMER"), asyncHandler(getUserTimers));
 
-router.put("/edit/:timerId", authenticate, asyncHandler(editTimer));
-router.delete("/delete/:timerId", authenticate, asyncHandler(deleteTimer));
+// These routes require higher permissions
+router.put("/edit/:timerId", authenticate, hasTimerPermission("UPDATE_TIMER"), asyncHandler(editTimer));
+router.delete("/delete/:timerId", authenticate, hasTimerPermission("DELETE_TIMER"), asyncHandler(deleteTimer));
 
 export const timerRoutes: Router = router;

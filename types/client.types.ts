@@ -8,5 +8,4 @@ export interface Client {
   billingRate: number
   notes?: string
   status: "active" | "archived"
-  projects: number
 }

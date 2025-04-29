@@ -65,6 +65,11 @@ export const createTask = async (req: Request, res: Response) => {
       }
     }
 
+    const creator = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { userName: true }
+    });
+
     const newTask = await prisma.task.create({
       data: {
         name,
@@ -74,7 +79,7 @@ export const createTask = async (req: Request, res: Response) => {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         priority: priority || "medium",
         status: status || "pending",
-        createdBy: userId
+        createdBy: creator?.userName || userId
       }
     });
 

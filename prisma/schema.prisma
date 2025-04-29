@@ -153,7 +153,7 @@ model Client {
   phone       String?
   address     String?
   industry    String?
-  billingRate Int
+  billingRate Float
   notes       String?
   status      ClientStatus @default(active)
   // createdBy   String

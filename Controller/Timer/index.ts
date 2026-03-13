@@ -76,16 +76,7 @@ const startTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
       });
     }
 
-    // Check if user has permission to create timers
-    const canCreateTimer = await hasPermission(userId, "CREATE_TIMER");
-    if (!canCreateTimer) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized: You don't have permission to create timers"
-      });
-    }
-
-    const { task, note } = req.body;
+    const { task, note, project, client } = req.body;
     if (!task) {
       return res
         .status(400)
@@ -115,6 +106,8 @@ const startTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
         userId: userId,
         task,
         note,
+        project,
+        client,
         startTime: new Date(),
         isActive: true,
       },
@@ -127,6 +120,7 @@ const startTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
       success: true,
       message: "Timer started successfully",
       timer: newTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error starting timer:", error);
@@ -159,48 +153,52 @@ const stopTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
       });
     }
 
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "UPDATE_TIMER");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to stop other users' timers",
-        });
-      }
-    } else {
-      // Even for their own timer, check if they have update permission
-      const canUpdateTimer = await hasPermission(userId, "UPDATE_TIMER");
-      if (!canUpdateTimer) {
-        return res.status(403).json({ 
-          success: false, 
-          message: "Unauthorized: You don't have permission to update timers" 
-        });
-      }
+    // Prevent stopping an already stopped timer
+    if (!timer.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Timer is already stopped",
+        timer: timer,
+      });
     }
 
-    // Calculate duration and update timer
     const endTime = new Date();
-    const duration = Math.floor(
-      (endTime.getTime() - timer.startTime.getTime()) / 1000
-    ); // Duration in seconds
+    
+    // Calculate final duration: (Total time elapsed) - (Total paused time)
+    let totalPausedTime = timer.totalPausedTime || 0;
+    
+    // If stopped while paused, we need to add the current pause duration to totalPausedTime
+    if (timer.isPaused && timer.pauseTime) {
+      const currentPauseDuration = Math.floor(
+        (endTime.getTime() - timer.pauseTime.getTime()) / 1000
+      );
+      totalPausedTime += currentPauseDuration;
+    }
 
-    // Create a timer history record
+    let duration = Math.floor(
+      (endTime.getTime() - timer.startTime.getTime()) / 1000
+    );
+    
+    // Subtract paused time and ensure duration is not negative
+    duration = Math.max(0, duration - totalPausedTime);
+
+    // Create a timer history record (include all fields for traceability)
     await prisma.timerHistory.create({
       data: {
         timerId: timer.id,
         userId: timer.userId,
         task: timer.task,
+        project: timer.project,
         client: timer.client,
         startTime: timer.startTime,
-        endTime: timer.endTime,
-        isActive: timer.isActive,
-        isPaused: timer.isPaused,
-        totalPausedTime: timer.totalPausedTime,
-        pauseTime: timer.pauseTime,
-        duration: timer.duration,
+        endTime: endTime,
+        isActive: false,
+        isPaused: false,
+        totalPausedTime: totalPausedTime,
+        pauseTime: null,
+        duration: duration,
         note: timer.note,
-        createdAt: timer.createdAt,
+        createdAt: new Date(),
       },
     });
 
@@ -211,6 +209,9 @@ const stopTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
       data: {
         endTime: endTime,
         isActive: false,
+        isPaused: false,
+        pauseTime: null,
+        totalPausedTime: totalPausedTime,
         duration: duration,
       },
     });
@@ -222,6 +223,7 @@ const stopTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
       success: true,
       message: "Timer stopped successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error stopping timer:", error);
@@ -240,15 +242,6 @@ const getActiveTimer = asyncHandler(async (req: Request, res: Response, next: Ne
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to read timers
-    const canReadTimer = await hasPermission(userId, "READ_TIMER");
-    if (!canReadTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to view timers" 
-      });
-    }
-
     const activeTimer = await prisma.timer.findFirst({
       where: {
         userId: userId,
@@ -260,6 +253,7 @@ const getActiveTimer = asyncHandler(async (req: Request, res: Response, next: Ne
       success: true,
       hasActiveTimer: !!activeTimer,
       timer: activeTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error getting active timer:", error);
@@ -276,15 +270,6 @@ const getUserTimers = asyncHandler(async (req: Request, res: Response, next: Nex
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-
-    // Check if user has permission to read timers
-    const canReadTimer = await hasPermission(userId, "READ_TIMER");
-    if (!canReadTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to view timers" 
-      });
     }
 
     const {
@@ -425,6 +410,7 @@ const getUserTimers = asyncHandler(async (req: Request, res: Response, next: Nex
       timers,
       totalPages: Math.ceil(count / parsedLimit),
       currentPage: parsedPage,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error fetching user timers:", error);
@@ -441,15 +427,6 @@ const pauseTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-
-    // Check if user has permission to update timers
-    const canUpdateTimer = await hasPermission(userId, "UPDATE_TIMER");
-    if (!canUpdateTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to update timers" 
-      });
     }
 
     const { timerId } = req.params;
@@ -470,17 +447,6 @@ const pauseTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
       });
     }
 
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "UPDATE_TIMER");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to pause other users' timers",
-        });
-      }
-    }
-
     const pauseTime = new Date();
 
     const updatedTimer = await prisma.timer.update({
@@ -499,6 +465,7 @@ const pauseTimer = asyncHandler(async (req: Request, res: Response, next: NextFu
       success: true,
       message: "Timer paused successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error pausing timer:", error);
@@ -517,15 +484,6 @@ const resumeTimer = asyncHandler(async (req: Request, res: Response, next: NextF
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to update timers
-    const canUpdateTimer = await hasPermission(userId, "UPDATE_TIMER");
-    if (!canUpdateTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to update timers" 
-      });
-    }
-
     const { timerId } = req.params;
 
     const timer = await prisma.timer.findFirst({
@@ -541,17 +499,6 @@ const resumeTimer = asyncHandler(async (req: Request, res: Response, next: NextF
         success: false,
         message: "No paused timer found with the provided ID",
       });
-    }
-
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "UPDATE_TIMER");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to resume other users' timers",
-        });
-      }
     }
 
     if (!timer.pauseTime) {
@@ -588,6 +535,7 @@ const resumeTimer = asyncHandler(async (req: Request, res: Response, next: NextF
       success: true,
       message: "Timer resumed successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error resuming timer:", error);
@@ -606,15 +554,6 @@ const updateTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to update timers
-    const canUpdateTimer = await hasPermission(userId, "UPDATE_TIMER");
-    if (!canUpdateTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to update timers" 
-      });
-    }
-
     const { timerId } = req.params;
     const { note } = req.body;
 
@@ -629,23 +568,13 @@ const updateTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       });
     }
 
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "UPDATE_TIMER");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to update other users' timers",
-        });
-      }
-    }
-
     // Create a timer history record
     await prisma.timerHistory.create({
       data: {
         timerId: timer.id,
         userId: timer.userId,
         task: timer.task,
+        project: timer.project,
         client: timer.client,
         startTime: timer.startTime,
         endTime: timer.endTime,
@@ -655,7 +584,7 @@ const updateTimerNote = asyncHandler(async (req: Request, res: Response, next: N
         pauseTime: timer.pauseTime,
         duration: timer.duration,
         note: note,
-        createdAt: timer.createdAt,
+        createdAt: new Date(),
       },
     });
 
@@ -672,6 +601,7 @@ const updateTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       success: true,
       message: "Timer note updated successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error updating timer note:", error);
@@ -690,15 +620,6 @@ const deleteTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to delete timer notes
-    const canDeleteTimerNote = await hasPermission(userId, "DELETE_TIMER_NOTE");
-    if (!canDeleteTimerNote) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to delete timer notes" 
-      });
-    }
-
     const { timerId } = req.params;
 
     let timer = await prisma.timer.findUnique({
@@ -712,23 +633,13 @@ const deleteTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       });
     }
 
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "DELETE_TIMER_NOTE");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to delete other users' timer notes",
-        });
-      }
-    }
-
     // Create a timer history record
     await prisma.timerHistory.create({
       data: {
         timerId: timer.id,
         userId: timer.userId,
         task: timer.task,
+        project: timer.project,
         client: timer.client,
         startTime: timer.startTime,
         endTime: timer.endTime,
@@ -738,7 +649,7 @@ const deleteTimerNote = asyncHandler(async (req: Request, res: Response, next: N
         pauseTime: timer.pauseTime,
         duration: timer.duration,
         note: timer.note,
-        createdAt: timer.createdAt,
+        createdAt: new Date(),
       },
     });
 
@@ -755,6 +666,7 @@ const deleteTimerNote = asyncHandler(async (req: Request, res: Response, next: N
       success: true,
       message: "Timer note deleted successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error deleting timer note:", error);
@@ -773,15 +685,6 @@ const editTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to update timers
-    const canUpdateTimer = await hasPermission(userId, "UPDATE_TIMER");
-    if (!canUpdateTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to update timers" 
-      });
-    }
-
     const { timerId } = req.params;
     const { task, client, project, note } = req.body;
 
@@ -794,17 +697,6 @@ const editTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
         success: false,
         message: "Timer not found",
       });
-    }
-
-    // Check if it's the user's own timer or if they have permission to update others' timers
-    if (timer.userId !== userId) {
-      const canUpdateOthers = await canManageOthersTimer(userId, "UPDATE_TIMER");
-      if (!canUpdateOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to edit other users' timers",
-        });
-      }
     }
 
     const updatedTimer = await prisma.timer.update({
@@ -823,6 +715,7 @@ const editTimer = asyncHandler(async (req: Request, res: Response, next: NextFun
       success: true,
       message: "Timer updated successfully",
       timer: updatedTimer,
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error updating timer:", error);
@@ -841,15 +734,6 @@ const deleteTimer = asyncHandler(async (req: Request, res: Response, next: NextF
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Check if user has permission to delete timers
-    const canDeleteTimer = await hasPermission(userId, "DELETE_TIMER");
-    if (!canDeleteTimer) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Unauthorized: You don't have permission to delete timers" 
-      });
-    }
-
     const { timerId } = req.params;
 
     const timer = await prisma.timer.findUnique({
@@ -863,23 +747,13 @@ const deleteTimer = asyncHandler(async (req: Request, res: Response, next: NextF
       });
     }
 
-    // Check if it's the user's own timer or if they have permission to delete others' timers
-    if (timer.userId !== userId) {
-      const canDeleteOthers = await canManageOthersTimer(userId, "DELETE_TIMER");
-      if (!canDeleteOthers) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized: You don't have permission to delete other users' timers",
-        });
-      }
-    }
-
     // Create a timer history record
     await prisma.timerHistory.create({
       data: {
         timerId: timer.id,
         userId: timer.userId,
         task: timer.task,
+        project: timer.project,
         client: timer.client || null,
         startTime: timer.startTime,
         endTime: timer.endTime || null,
@@ -889,7 +763,7 @@ const deleteTimer = asyncHandler(async (req: Request, res: Response, next: NextF
         pauseTime: timer.pauseTime,
         duration: timer.duration,
         note: timer.note,
-        createdAt: timer.createdAt,
+        createdAt: new Date(),
       },
     });
 
@@ -902,6 +776,7 @@ const deleteTimer = asyncHandler(async (req: Request, res: Response, next: NextF
     return res.status(200).json({
       success: true,
       message: "Timer deleted successfully",
+      serverTime: new Date(),
     });
   } catch (error: any) {
     console.error("Error deleting timer:", error);

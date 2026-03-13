@@ -9,7 +9,8 @@
     "test": "npm run test ",
     "build": "tsc",
     "lint": "eslint .",
-    "seed:permissions": "node --loader ts-node/esm scripts/seedPermissions.ts"
+    "seed:permissions": "node --loader ts-node/esm scripts/seedPermissions.ts",
+    "timer:autostop": "node --loader ts-node/esm scripts/autoStopTimers.ts"
   },
   "keywords": [],
   "author": "",

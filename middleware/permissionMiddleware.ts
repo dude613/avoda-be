@@ -81,6 +81,28 @@ export const hasTimerPermission = (permissionName: string) => {
       if (userRole === 'admin') {
         return next();
       }
+
+      // For timer operations, also check if the user owns the timer
+      // We check this BEFORE organization membership to allow archived users to stop their own timers
+      if (req.params.timerId) {
+        const { timerId } = req.params;
+        
+        // Check if the timer exists and get its details
+        const timer = await prisma.timer.findUnique({
+          where: { id: timerId },
+        });
+        
+        if (!timer) {
+          return res.status(404).json({ success: false, message: "Timer not found" });
+        }
+        
+        // If it's the user's own timer, they can always modify it regardless of permissions
+        if (timer.userId === userId) {
+          return next();
+        }
+        
+        // If it's not their timer, they need to be part of an organization and have permissions
+      }
       
       // Get the team member record for this user
       const teamMember = await prisma.teamMember.findUnique({
@@ -116,25 +138,9 @@ export const hasTimerPermission = (permissionName: string) => {
         });
       }
       
-      // For timer operations, also check if the user owns the timer or has permission for the associated task
+      // If we are here and req.params.timerId exists, it means the user is NOT the owner
+      // so we need to check if they have the permission to manage others' timers
       if (req.params.timerId) {
-        const { timerId } = req.params;
-        
-        // Check if the timer exists and get its details
-        const timer = await prisma.timer.findUnique({
-          where: { id: timerId },
-        });
-        
-        if (!timer) {
-          return res.status(404).json({ success: false, message: "Timer not found" });
-        }
-        
-        // If it's the user's own timer, they can always modify it regardless of permissions
-        if (timer.userId === userId) {
-          return next();
-        }
-        
-        // If it's not their timer, they need the specific permission to modify others' timers
         const otherPermission = await prisma.permission.findUnique({
           where: { name: `${permissionName}_OTHERS` },
         });
